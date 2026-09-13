@@ -30,7 +30,8 @@
 ```
 moshikabu/
 ├── api/
-│   └── index.py            # Vercel Serverless Function のエントリ（backend の FastAPI を公開）
+│   ├── index.py            # Vercel Serverless Function のエントリ（backend の FastAPI を公開）
+│   └── requirements.txt    # 関数の依存。ルートに置くと Vercel が FastAPI プロジェクトと誤検出する
 ├── backend/
 │   ├── app/
 │   │   ├── main.py         # FastAPI アプリ本体
@@ -59,7 +60,6 @@ moshikabu/
 │           └── storage/    # ★ PortfolioRepository（保存先の抽象化）
 │               ├── repository.ts           # インターフェース
 │               └── localStorageRepository.ts
-├── requirements.txt        # Vercel 用（api/index.py の依存）
 └── vercel.json
 ```
 

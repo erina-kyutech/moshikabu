@@ -1,0 +1,6 @@
+# Vercel の Python Serverless Function 用（api/index.py と同じ階層に置くこと）
+# ここをプロジェクトルートに置くと Vercel が「FastAPI プロジェクト」と誤検出し、
+# フロントエンドの静的ビルド出力が配信されなくなるので注意。
+fastapi>=0.115
+yfinance>=0.2.50
+pydantic>=2.7

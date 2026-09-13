@@ -1,13 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build",
+  "framework": "vite",
   "installCommand": "npm install",
+  "buildCommand": "npm run build",
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {
       "includeFiles": "backend/app/**",
-      "maxDuration": 60,
-      "memory": 1024
+      "maxDuration": 60
     }
   },
   "rewrites": [
