@@ -1,0 +1,4 @@
+# Vercel の Python Serverless Function 用（ローカル開発は backend/requirements.txt）
+fastapi>=0.115
+yfinance>=0.2.50
+pydantic>=2.7

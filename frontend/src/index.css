@@ -1,0 +1,70 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------
+   デザイントークン
+   白 / 薄いグレーブルー / ネイビー を基調に、青・緑・赤は要所のみ。
+   ------------------------------------------------------------------ */
+@theme {
+  --font-sans: 'Inter', 'Noto Sans JP', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0f172a; /* 本文・見出し（ネイビー） */
+  --color-ink-soft: #334155;
+  --color-muted: #64748b; /* ラベル・補足 */
+  --color-faint: #94a3b8;
+
+  --color-canvas: #f7f9fc; /* ページ背景 */
+  --color-canvas-2: #f8fafc;
+  --color-line: #e5e7eb; /* カードのボーダー */
+  --color-line-soft: #eef2f7;
+
+  --color-brand: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-brand-soft: #eff6ff;
+
+  --color-gain: #16a34a;
+  --color-gain-500: #10b981;
+  --color-gain-soft: #ecfdf5;
+
+  --color-loss: #ef4444;
+  --color-loss-soft: #fef2f2;
+
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 8px 28px rgba(15, 23, 42, 0.08);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 数値は少し太く・字幅を揃える */
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Recharts のフォーカス枠を消す */
+.recharts-wrapper:focus,
+.recharts-surface:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

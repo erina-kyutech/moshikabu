@@ -1,0 +1,12 @@
+{
+  "name": "moshikabu",
+  "private": true,
+  "version": "1.0.0",
+  "description": "MoshiKabu - 現実の株価で「もし買っていたら」を試せる投資シミュレーター",
+  "scripts": {
+    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev",
+    "test": "npm --prefix frontend run test",
+    "typecheck": "npm --prefix frontend run typecheck"
+  }
+}
