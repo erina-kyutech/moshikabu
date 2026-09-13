@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
@@ -119,32 +120,40 @@ def get_stock_actions(ticker: str, start: date | None = None) -> ActionsOut:
     )
 
 
+def _quote_one(ticker: str) -> QuoteOut | None:
+    provider = get_provider()
+    m = symbol_meta(ticker)
+    try:
+        quote = provider.get_quote(m.ticker)
+    except (SymbolNotFoundError, MarketDataError):
+        return None
+    try:
+        name = provider.get_info(m.ticker).name
+    except (SymbolNotFoundError, MarketDataError):
+        name = None
+    return QuoteOut(
+        ticker=m.ticker,
+        name=name,
+        market=m.market,
+        currency=quote.currency,
+        price=quote.price,
+        previousClose=quote.previous_close,
+        change=quote.change,
+        changePercent=quote.change_percent,
+        asOf=quote.as_of,
+    )
+
+
 @router.get("/quotes", response_model=list[QuoteOut])
 def get_quotes(tickers: str = Query(..., description="カンマ区切りのティッカー")) -> list[QuoteOut]:
-    """ポートフォリオ画面用の一括取得。1銘柄失敗しても全体は落とさない。"""
-    provider = get_provider()
-    out: list[QuoteOut] = []
-    for raw in [t for t in tickers.split(",") if t.strip()][:50]:
-        m = symbol_meta(raw)
-        try:
-            quote = provider.get_quote(m.ticker)
-        except (SymbolNotFoundError, MarketDataError):
-            continue
-        try:
-            name = provider.get_info(m.ticker).name
-        except (SymbolNotFoundError, MarketDataError):
-            name = None
-        out.append(
-            QuoteOut(
-                ticker=m.ticker,
-                name=name,
-                market=m.market,
-                currency=quote.currency,
-                price=quote.price,
-                previousClose=quote.previous_close,
-                change=quote.change,
-                changePercent=quote.change_percent,
-                asOf=quote.as_of,
-            )
-        )
-    return out
+    """ポートフォリオ画面用の一括取得。1銘柄失敗しても全体は落とさない。
+
+    yfinance の呼び出しは I/O 待ちが大半なので、銘柄ごとに並列で取得する。
+    """
+    requested = [t for t in tickers.split(",") if t.strip()][:50]
+    if not requested:
+        return []
+
+    with ThreadPoolExecutor(max_workers=min(8, len(requested))) as pool:
+        results = list(pool.map(_quote_one, requested))
+    return [q for q in results if q is not None]

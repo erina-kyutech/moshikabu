@@ -13,6 +13,7 @@ import {
   formatPercent,
   formatPrice,
   formatShares,
+  formatSignedMoney,
   todayISO,
 } from '../lib/format'
 
@@ -133,7 +134,7 @@ export function SellDialog({
               <dd>
                 <Change
                   value={profit}
-                  text={`${profit! >= 0 ? '+' : '-'}${formatMoney(Math.abs(profit!), c)}`}
+                  text={formatSignedMoney(profit!, c)}
                   sub={formatPercent(returnPct)}
                   align="right"
                 />

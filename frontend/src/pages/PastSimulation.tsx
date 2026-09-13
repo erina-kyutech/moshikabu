@@ -240,6 +240,10 @@ function ResultView({ result, onRerun }: { result: Result; onRerun: () => void }
   const tone = result.profit >= 0 ? ('gain' as const) : ('loss' as const)
   const buyPointPrice = result.series[0]?.price ?? result.purchasePrice
   const hasSplit = result.splitFactor !== 1
+  // 休場日によるズレ（数日）と、上場前など「データが無い」ケース（数か月〜）を区別する
+  const gapDays = Math.round(
+    (new Date(result.tradeDate).getTime() - new Date(result.requestedDate).getTime()) / 86_400_000,
+  )
 
   return (
     <div className="space-y-6">
@@ -271,10 +275,20 @@ function ResultView({ result, onRerun }: { result: Result; onRerun: () => void }
           <div className="mt-5 space-y-2.5 border-t border-line-soft pt-5">
             {result.marketClosed ? (
               <Notice tone="warn" icon={<InfoIcon className="h-4 w-4" />}>
-                指定日（{formatDateJa(result.requestedDate)}
-                ）は休場日だったため、次の取引日{' '}
-                <span className="font-semibold">{formatDateJa(result.tradeDate)}</span>{' '}
-                の終値で購入したものとして計算しました。
+                {gapDays > 7 ? (
+                  <>
+                    指定日（{formatDateJa(result.requestedDate)}）には株価データがなかったため、
+                    データのある最初の取引日{' '}
+                    <span className="font-semibold">{formatDateJa(result.tradeDate)}</span>{' '}
+                    の終値で購入したものとして計算しました。上場前の日付を指定した可能性があります。
+                  </>
+                ) : (
+                  <>
+                    指定日（{formatDateJa(result.requestedDate)}）は休場日だったため、次の取引日{' '}
+                    <span className="font-semibold">{formatDateJa(result.tradeDate)}</span>{' '}
+                    の終値で購入したものとして計算しました。
+                  </>
+                )}
               </Notice>
             ) : null}
             {hasSplit ? (
