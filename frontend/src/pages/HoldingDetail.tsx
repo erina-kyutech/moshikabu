@@ -21,6 +21,7 @@ import type { Position } from '../lib/storage'
 import { splitFactorSince, valuePosition } from '../lib/portfolio'
 import type { Actions, PricePoint, Quote, SymbolInfo } from '../lib/types'
 import {
+  displayCode,
   formatDateJa,
   formatDateTimeJa,
   formatHoldingPeriod,
@@ -190,7 +191,7 @@ export default function HoldingDetail() {
             <div>
               <h1 className="text-xl font-bold text-ink sm:text-2xl">{position.name}</h1>
               <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted">
-                <span>{position.ticker}</span>
+                <span>{displayCode(position.ticker)}</span>
                 <span className="text-line">|</span>
                 <span>{info?.exchange ?? (position.market === 'JP' ? '東証' : '米国市場')}</span>
                 {info?.sector ? (

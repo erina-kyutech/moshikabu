@@ -18,6 +18,7 @@ import { buildPortfolioSeries, summarize, valuePosition } from '../lib/portfolio
 import type { PositionValuation } from '../lib/portfolio'
 import type { Position } from '../lib/storage'
 import {
+  displayCode,
   formatMoney,
   formatPercent,
   formatPrice,
@@ -254,7 +255,7 @@ function HoldingsList({
                       <StockAvatar ticker={p.ticker} name={p.name} size="sm" />
                       <span className="min-w-0">
                         <span className="block truncate font-semibold text-ink">{p.name}</span>
-                        <span className="block text-xs text-muted">{p.ticker}</span>
+                        <span className="block text-xs text-muted">{displayCode(p.ticker)}</span>
                       </span>
                     </Link>
                   </td>
@@ -311,7 +312,7 @@ function HoldingsList({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold text-ink">{p.name}</span>
                   <span className="block text-xs text-muted">
-                    {p.ticker} ・ {formatShares(v.sharesNow)}株
+                    {displayCode(p.ticker)} ・ {formatShares(v.sharesNow)}株
                   </span>
                 </span>
                 <ChevronRightIcon className="h-4 w-4 shrink-0 text-faint" />

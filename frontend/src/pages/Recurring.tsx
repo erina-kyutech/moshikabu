@@ -15,6 +15,7 @@ import { ArrowLeftIcon, ArrowRightIcon, InfoIcon, SplitIcon } from '../component
 import { api, ApiError } from '../lib/api'
 import type { BaseCurrency, Quote, RecurringSimulation } from '../lib/types'
 import {
+  displayCode,
   formatDateJa,
   formatDateSlash,
   formatMoney,
@@ -60,7 +61,7 @@ export default function Recurring() {
   const submit = async () => {
     setFormError('')
     if (!ticker.trim()) return setFormError('銘柄を入力してください。')
-    if (!quote) return setFormError('銘柄が確定していません。正しい銘柄コードを入力してください。')
+    if (!quote) return setFormError('銘柄が確定していません。証券コードを入力するか、候補から銘柄を選んでください。')
     if (!start) return setFormError('積立開始日を入力してください。')
     if (start > todayISO()) return setFormError('積立開始日には過去の日付を指定してください。')
     const amountNum = Number(amount)
@@ -256,7 +257,7 @@ function RecurringResult({ result }: { result: RecurringSimulation }) {
             <div>
               <p className="text-lg font-bold text-ink sm:text-xl">{result.name}</p>
               <p className="text-sm text-muted">
-                {result.ticker}
+                {displayCode(result.ticker)}
                 <span className="mx-1.5 text-line">|</span>
                 {result.market === 'JP' ? '日本株' : '米国株'}
               </p>

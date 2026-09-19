@@ -8,7 +8,8 @@ from ..providers import get_provider
 from ..providers.base import MarketDataError, SymbolNotFoundError
 from ..schemas import PastSimulationOut, SplitOut, ValuePointOut
 from ..services.simulation import SimulationError, downsample, simulate_past
-from ..symbols import meta as symbol_meta
+from ..services.search import resolve
+from ..symbols import describe
 
 router = APIRouter(prefix="/api/simulate", tags=["simulate"])
 
@@ -34,15 +35,15 @@ def simulate_past_endpoint(
         )
 
     provider = get_provider()
-    m = symbol_meta(ticker)
     try:
+        m = describe(resolve(ticker))
         info = provider.get_info(m.ticker)
         points = provider.get_history(m.ticker, start=date_)
         actions = provider.get_actions(m.ticker)
     except SymbolNotFoundError:
         raise HTTPException(
             status_code=404,
-            detail={"code": "SYMBOL_NOT_FOUND", "message": f"銘柄が見つかりませんでした（{m.ticker}）"},
+            detail={"code": "SYMBOL_NOT_FOUND", "message": f"銘柄が見つかりませんでした（{ticker}）"},
         )
     except MarketDataError:
         raise HTTPException(

@@ -8,6 +8,7 @@ import { api, ApiError } from '../lib/api'
 import { portfolioRepository } from '../lib/storage'
 import type { Position } from '../lib/storage'
 import {
+  displayCode,
   formatHoldingPeriod,
   formatMoney,
   formatPercent,
@@ -107,7 +108,7 @@ export function SellDialog({
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-ink">{position.name}</p>
             <p className="text-xs text-muted">
-              {position.ticker}
+              {displayCode(position.ticker)}
               <span className="mx-1.5 text-line">|</span>
               {formatShares(sharesNow)}株
             </p>

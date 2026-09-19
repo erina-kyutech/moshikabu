@@ -19,6 +19,7 @@ import { api, ApiError } from '../lib/api'
 import type { PastSimulation as Result, Quote } from '../lib/types'
 import {
   currencySymbol,
+  displayCode,
   formatDateJa,
   formatMoney,
   formatPercent,
@@ -57,7 +58,7 @@ export default function PastSimulation() {
   const submit = async () => {
     setFormError('')
     if (!ticker.trim()) return setFormError('銘柄を入力してください。')
-    if (!quote) return setFormError('銘柄が確定していません。正しい銘柄コードを入力してください。')
+    if (!quote) return setFormError('銘柄が確定していません。証券コードを入力するか、候補から銘柄を選んでください。')
     if (!date) return setFormError('購入日を入力してください。')
     if (date > todayISO()) return setFormError('購入日には過去の日付を指定してください。')
 
@@ -218,7 +219,7 @@ export default function PastSimulation() {
           <div className="text-sm leading-relaxed text-muted">
             <p className="font-semibold text-ink">ヒント</p>
             <p className="mt-1">
-              日本株は証券コード（例：5401）だけで検索できます。米国株はティッカー（例：AAPL）を入力してください。
+              日本株は証券コード（例：5401・150A）、米国株はティッカー（例：AAPL）で探せます。「日本製鉄」「Apple」のように社名で探して、候補から選ぶこともできます。
             </p>
           </div>
         </div>
@@ -258,7 +259,7 @@ function ResultView({ result, onRerun }: { result: Result; onRerun: () => void }
             <div>
               <p className="text-lg font-bold text-ink sm:text-xl">{result.name}</p>
               <p className="text-sm text-muted">
-                {result.ticker}
+                {displayCode(result.ticker)}
                 <span className="mx-1.5 text-line">|</span>
                 {result.market === 'JP' ? '日本株' : '米国株'}
               </p>

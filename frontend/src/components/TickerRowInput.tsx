@@ -1,14 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
-import { api, ApiError } from '../lib/api'
-import type { Quote } from '../lib/types'
-import { Input } from './ui/Field'
-import { CloseIcon, SearchIcon } from './Icons'
+import { useCallback, useRef, useState } from 'react'
+import { api } from '../lib/api'
+import type { SymbolSearchResult } from '../lib/types'
+import { CloseIcon } from './Icons'
 import { Spinner } from './ui/States'
 import { StockAvatar } from './StockAvatar'
+import { SymbolCombobox } from './SymbolCombobox'
+
+export interface ResolvedSymbol {
+  ticker: string
+  name: string
+  market: 'JP' | 'US'
+  exchange: string
+}
 
 /**
- * 比較用の1行ぶんの銘柄入力。
- * 入力が止まったら銘柄名を確認し、行の中にコンパクトに表示する。
+ * 比較用の1行ぶんの銘柄入力（検索候補つき）。
+ * 選ばれた銘柄は株価が取れることまで確認してから親に伝える。
  */
 export function TickerRowInput({
   value,
@@ -22,66 +29,60 @@ export function TickerRowInput({
   value: string
   onChange: (v: string) => void
   onRemove: () => void
-  onResolved?: (ticker: string, quote: Quote | null) => void
+  onResolved: (resolved: ResolvedSymbol | null) => void
   canRemove: boolean
   index: number
   color: string
 }) {
-  const [quote, setQuote] = useState<Quote | null>(null)
+  const [resolved, setResolved] = useState<ResolvedSymbol | null>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ok'>('idle')
   const requestId = useRef(0)
   const resolvedRef = useRef(onResolved)
   resolvedRef.current = onResolved
 
-  useEffect(() => {
-    const raw = value.trim()
-    if (!raw) {
+  const onPick = useCallback(async (picked: SymbolSearchResult | null) => {
+    const myId = ++requestId.current
+    if (!picked) {
+      setResolved(null)
       setStatus('idle')
-      setQuote(null)
-      resolvedRef.current?.(raw, null)
+      resolvedRef.current(null)
       return
     }
-    const myId = ++requestId.current
     setStatus('loading')
-    const timer = setTimeout(async () => {
-      try {
-        const q = await api.quote(raw)
-        if (myId !== requestId.current) return
-        setQuote(q)
-        setStatus('ok')
-        resolvedRef.current?.(raw, q)
-      } catch (e) {
-        if (myId !== requestId.current) return
-        setQuote(null)
-        setStatus(e instanceof ApiError ? 'error' : 'error')
-        resolvedRef.current?.(raw, null)
+    try {
+      // 確認済みの候補はそのティッカーで、未確認（辞書に無いコード等）は入力のままで取得を試す
+      const q = await api.quote(picked.verified ? picked.ticker : picked.code)
+      if (myId !== requestId.current) return
+      const r: ResolvedSymbol = {
+        ticker: q.ticker,
+        name: picked.verified ? picked.name : (q.name ?? picked.name),
+        market: q.market,
+        exchange: picked.exchange,
       }
-    }, 550)
-    return () => clearTimeout(timer)
-  }, [value])
+      setResolved(r)
+      setStatus('ok')
+      resolvedRef.current(r)
+    } catch {
+      if (myId !== requestId.current) return
+      setResolved(null)
+      setStatus('error')
+      resolvedRef.current(null)
+    }
+  }, [])
 
   return (
     <div className="rounded-xl border border-line bg-white p-3">
       <div className="flex items-center gap-2">
-        <span
-          aria-hidden
-          className="h-6 w-1.5 shrink-0 rounded-full"
-          style={{ backgroundColor: color }}
-        />
-        <div className="relative flex-1">
-          <Input
+        <span aria-hidden className="h-6 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        <div className="flex-1">
+          <SymbolCombobox
             value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={index === 0 ? 'AAPL' : index === 1 ? 'NVDA' : '5401 / QQQ …'}
-            aria-label={`比較する銘柄 ${index + 1}`}
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
-            className="h-11 pr-9"
+            onChange={onChange}
+            onPick={onPick}
+            ariaLabel={`比較する銘柄 ${index + 1}`}
+            placeholder={index === 0 ? 'AAPL / Apple' : index === 1 ? '5401 / 日本製鉄' : '150A / QQQ …'}
+            compact
           />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-faint">
-            {status === 'loading' ? <Spinner /> : <SearchIcon className="h-4 w-4" />}
-          </span>
         </div>
         <button
           type="button"
@@ -94,14 +95,16 @@ export function TickerRowInput({
         </button>
       </div>
 
-      {status === 'ok' && quote ? (
+      {status === 'loading' ? (
+        <p className="mt-2 flex items-center gap-2 pl-3.5 text-xs text-muted">
+          <Spinner className="h-3.5 w-3.5" /> 株価データを確認中…
+        </p>
+      ) : status === 'ok' && resolved ? (
         <div className="mt-2 flex items-center gap-2 pl-3.5">
-          <StockAvatar ticker={quote.ticker} name={quote.name ?? undefined} size="sm" />
-          <span className="min-w-0 truncate text-sm font-medium text-ink">
-            {quote.name ?? quote.ticker}
-          </span>
+          <StockAvatar ticker={resolved.ticker} name={resolved.name} size="sm" />
+          <span className="min-w-0 truncate text-sm font-medium text-ink">{resolved.name}</span>
           <span className="shrink-0 text-xs text-muted">
-            {quote.ticker}・{quote.market === 'JP' ? '日本株' : '米国株'}
+            {resolved.ticker.replace(/\.T$/, '')}・{resolved.exchange}
           </span>
         </div>
       ) : status === 'error' ? (

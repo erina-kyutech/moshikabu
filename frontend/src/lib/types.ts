@@ -249,3 +249,27 @@ export interface StrategyComparison {
   recurring: StrategySide
   series: StrategyPoint[]
 }
+
+// ------------------------------------------------------------------ 銘柄検索
+export interface SymbolSearchResult {
+  /** データ取得に使うティッカー（150A.T / AAPL） */
+  ticker: string
+  /** ユーザーに見せる短いコード（150A / AAPL） */
+  code: string
+  name: string
+  market: Market
+  /** 表示用の市場名（東証グロース / NASDAQ） */
+  exchange: string
+  quoteType: 'EQUITY' | 'ETF' | 'REIT' | 'INDEX' | string
+  /** 入力がコード・ティッカーとして完全一致 */
+  exact: boolean
+  /** 存在を確認済みか（false は「.T を付けて試す」などの推定候補） */
+  verified: boolean
+  source: 'directory' | 'provider' | 'direct' | string
+}
+
+export interface SymbolSearchResponse {
+  query: string
+  directoryAsOf?: string | null
+  results: SymbolSearchResult[]
+}

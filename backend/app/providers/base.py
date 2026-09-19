@@ -62,6 +62,17 @@ class Dividend:
 
 
 @dataclass(frozen=True)
+class SymbolCandidate:
+    """銘柄検索の候補（データソースが返したもの）。"""
+
+    ticker: str
+    name: str
+    exchange: str | None        # 取引所の表示名（例: NASDAQ / Tokyo Stock Exchange）
+    exchange_code: str | None   # 取引所コード（例: NMS / NYQ / JPX）
+    quote_type: str             # EQUITY / ETF / INDEX など
+
+
+@dataclass(frozen=True)
 class CorporateActions:
     ticker: str
     splits: list[Split] = field(default_factory=list)
@@ -90,3 +101,7 @@ class MarketDataProvider(ABC):
     @abstractmethod
     def get_actions(self, ticker: str, start: date | None = None) -> CorporateActions:
         """株式分割・配当。"""
+
+    def search(self, query: str, limit: int = 10) -> list[SymbolCandidate]:
+        """会社名・ティッカーでの銘柄検索。対応していないデータソースは空を返す。"""
+        return []

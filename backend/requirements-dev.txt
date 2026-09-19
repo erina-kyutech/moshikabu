@@ -1,0 +1,6 @@
+# 開発・テスト・データ更新用（アプリの実行には不要）
+-r requirements.txt
+pytest>=8
+httpx>=0.27
+pandas>=2
+openpyxl>=3.1   # scripts/update_jpx_master.py が JPX の xlsx を読むために使う

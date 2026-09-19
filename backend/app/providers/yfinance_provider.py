@@ -11,8 +11,9 @@ import pandas as pd
 import yfinance as yf
 
 from .. import cache
-from ..jp_names import jp_name_for
-from ..symbols import meta as symbol_meta
+from .. import directory
+# プロバイダは確定済みのティッカーを受け取る（.T の付与などの正規化はルーター側の責務）
+from ..symbols import describe as symbol_meta
 from .base import (
     CorporateActions,
     Dividend,
@@ -21,6 +22,7 @@ from .base import (
     PricePoint,
     Quote,
     Split,
+    SymbolCandidate,
     SymbolInfo,
     SymbolNotFoundError,
 )
@@ -59,13 +61,18 @@ class YFinanceProvider(MarketDataProvider):
             currency = raw.get("currency") or m.currency
             market = "JP" if currency == "JPY" else m.market
 
+            # 日本株は JPX の辞書から日本語の銘柄名と市場区分（東証プライム等）を補う
+            jp = directory.lookup(m.ticker) if m.ticker.endswith(".T") else None
+
             return SymbolInfo(
                 ticker=m.ticker,
-                name=jp_name_for(m.ticker) or name or m.ticker,
+                name=(jp.name if jp else None) or name or m.ticker,
                 market=market,
                 currency=currency,
-                exchange=raw.get("fullExchangeName") or raw.get("exchange"),
-                sector=raw.get("sector"),
+                exchange=(jp.segment if jp else None)
+                or raw.get("fullExchangeName")
+                or raw.get("exchange"),
+                sector=(jp.industry if jp and jp.industry else None) or raw.get("sector"),
             )
 
         return cache.get_or_set(f"info:{m.ticker}", cache.TTL_INFO, load)
@@ -187,3 +194,32 @@ class YFinanceProvider(MarketDataProvider):
             splits=[s for s in actions.splits if s.date >= start],
             dividends=[d for d in actions.dividends if d.date >= start],
         )
+
+    # ---------------------------------------------------------------- search
+    def search(self, query: str, limit: int = 10) -> list[SymbolCandidate]:
+        q = (query or "").strip()
+        if not q:
+            return []
+
+        def load() -> list[SymbolCandidate]:
+            try:
+                raw = yf.Search(q, max_results=max(limit, 10), news_count=0).quotes or []
+            except Exception as exc:
+                raise MarketDataError(str(exc)) from exc
+            out: list[SymbolCandidate] = []
+            for item in raw:
+                symbol = item.get("symbol")
+                if not symbol:
+                    continue
+                out.append(
+                    SymbolCandidate(
+                        ticker=str(symbol).upper(),
+                        name=item.get("longname") or item.get("shortname") or str(symbol),
+                        exchange=item.get("exchDisp"),
+                        exchange_code=item.get("exchange"),
+                        quote_type=str(item.get("quoteType") or "").upper(),
+                    )
+                )
+            return out
+
+        return cache.get_or_set(f"search:{q.lower()}", cache.TTL_INFO, load)

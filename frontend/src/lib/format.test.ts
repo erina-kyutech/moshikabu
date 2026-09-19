@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  displayCode,
   formatDateJa,
   formatHoldingPeriod,
   formatMoney,
@@ -59,5 +60,14 @@ describe('その他の表示', () => {
     expect(formatHoldingPeriod('2024-01-01', '2024-01-15')).toBe('14日')
     expect(formatHoldingPeriod('2024-01-01', '2024-05-01')).toBe('4か月')
     expect(formatHoldingPeriod('2023-01-01', '2024-03-01')).toBe('1年2か月')
+  })
+})
+
+describe('銘柄コードの表示', () => {
+  it('Yahoo Finance 用の .T は画面に出さない', () => {
+    expect(displayCode('150A.T')).toBe('150A')
+    expect(displayCode('5401.T')).toBe('5401')
+    expect(displayCode('AAPL')).toBe('AAPL')
+    expect(displayCode('^N225')).toBe('^N225')
   })
 })

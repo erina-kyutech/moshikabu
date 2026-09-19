@@ -15,6 +15,7 @@ from .base import (
     PricePoint,
     Quote,
     Split,
+    SymbolCandidate,
     SymbolInfo,
     SymbolNotFoundError,
 )
@@ -27,6 +28,7 @@ __all__ = [
     "PricePoint",
     "Quote",
     "Split",
+    "SymbolCandidate",
     "SymbolInfo",
     "SymbolNotFoundError",
     "get_provider",

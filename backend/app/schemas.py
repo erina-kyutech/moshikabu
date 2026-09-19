@@ -108,3 +108,21 @@ class FxOut(BaseModel):
 class ErrorOut(BaseModel):
     code: str
     message: str
+
+
+class SearchResultOut(BaseModel):
+    ticker: str          # 取得に使うティッカー（150A.T / AAPL）
+    code: str            # 表示用のコード（150A / AAPL）
+    name: str
+    market: str          # JP / US
+    exchange: str        # 東証グロース / NASDAQ など
+    quoteType: str       # EQUITY / ETF / REIT / INDEX
+    exact: bool          # 入力がコード・ティッカーとして完全一致
+    verified: bool       # 存在を確認済みか（false は「.T を付けて試す」などの推定候補）
+    source: str
+
+
+class SearchOut(BaseModel):
+    query: str
+    directoryAsOf: str | None = None
+    results: list[SearchResultOut]

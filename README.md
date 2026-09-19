@@ -123,6 +123,7 @@ cd frontend && npm test
 | メソッド | パス | 説明 |
 | --- | --- | --- |
 | GET | `/api/health` | 稼働確認と使用中のプロバイダ名 |
+| GET | `/api/search?q=` | 社名・証券コード・ティッカーで銘柄候補を検索 |
 | GET | `/api/stock/{ticker}` | 銘柄情報＋最新価格 |
 | GET | `/api/stock/{ticker}/info` | 銘柄基本情報のみ |
 | GET | `/api/stock/{ticker}/history?start=&end=&maxPoints=` | 株価履歴（分割調整後） |
@@ -131,7 +132,45 @@ cd frontend && npm test
 | GET | `/api/simulate/past?ticker=&date=&shares=\|amount=` | 過去シミュレーション |
 | GET | `/api/fx/usdjpy?start=` | USD/JPY レート（円換算用） |
 
-`ticker` は `5401` / `5401.T` / `AAPL` のいずれの形式でも受け付けます。
+`ticker` は `5401` / `150A` / `5401.T` / `AAPL` のいずれの形式でも受け付けます。
+
+---
+
+## 銘柄の検索
+
+検索欄には、次のどれを入れても候補が出ます。Yahoo Finance 形式（`150A.T`）を覚える必要はありません。
+
+| 入力 | 候補 |
+| --- | --- |
+| `5401` / `7203` | 日本製鉄・トヨタ自動車（東証プライム） |
+| `150A` / `１５０ａ` | JSH（東証グロース）※ 2024年以降の英字入りコード |
+| `日本製鉄` / `株式会社JSH` / `とよた` | 日本語の社名（法人格・全角・ひらがなは吸収） |
+| `AAPL` / `Apple` / `NVIDIA` | 米国株（NASDAQ / NYSE） |
+
+### 日本株と米国株の見分け方
+
+「数字4桁なら日本株」という判定は使いません（2024年1月以降、`130A` `150A` のような英字入りコードがあるため）。
+
+1. `.T` が付いていれば日本株
+2. **先頭が数字**で日本のコードの形（1・3桁目が数字、2・4桁目が数字か英字。優先株などの5桁コードも可）
+   - JPX の上場銘柄一覧に載っていれば日本株で確定し、`{コード}.T` で取得
+   - 載っていなければ（一覧の更新後に上場した銘柄など）`{コード}.T` → `{コード}` の順に取得を試す
+3. **先頭が英字**のもの（`AAPL` `BRK-B` `^N225` など）は米国などのティッカーとしてそのまま扱い、`.T` は付けない
+
+米国の上場銘柄のティッカーは英字で始まるので、2 と 3 が衝突することはありません。
+
+### 情報源
+
+- **日本語の社名・市場区分**: JPX の「東証上場銘柄一覧」から作った `backend/app/data/jpx_listed.json`（Yahoo Finance の検索は日本語の社名を引けないため）
+- **英語名・米国株・新規上場**: Yahoo Finance の検索（`MarketDataProvider.search`）。先物・OTC・海外の重複上場・私設取引所（`5401@F.T` など）は除外
+
+新規上場を辞書に反映するには、次を実行して JSON をコミットします。
+
+```bash
+cd backend
+./.venv/Scripts/python.exe -m pip install -r requirements-dev.txt
+./.venv/Scripts/python.exe scripts/update_jpx_master.py
+```
 
 ---
 

@@ -15,6 +15,7 @@ import type { Position } from '../lib/storage'
 import type { PricePoint, Quote } from '../lib/types'
 import {
   currencySymbol,
+  displayCode,
   formatDateTimeJa,
   formatMoney,
   formatPrice,
@@ -79,7 +80,7 @@ export default function Invest() {
 
   const submit = async () => {
     setFormError('')
-    if (!quote) return setFormError('銘柄を入力して、銘柄が表示されるまでお待ちください。')
+    if (!quote) return setFormError('銘柄が確定していません。証券コードを入力するか、候補から銘柄を選んでください。')
     if (previewShares == null) {
       return setFormError(
         buyBy === 'shares'
@@ -128,7 +129,7 @@ export default function Invest() {
             <div className="min-w-0 flex-1">
               <p className="truncate font-bold text-ink">{done.name}</p>
               <p className="text-xs text-muted">
-                {done.ticker}
+                {displayCode(done.ticker)}
                 <span className="mx-1.5 text-line">|</span>
                 {formatDateTimeJa(done.buyAt)}
               </p>

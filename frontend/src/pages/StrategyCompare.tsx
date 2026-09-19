@@ -23,6 +23,7 @@ import { ArrowLeftIcon, CheckIcon, InfoIcon } from '../components/Icons'
 import { api, ApiError } from '../lib/api'
 import type { Quote, StrategyComparison, StrategySide } from '../lib/types'
 import {
+  displayCode,
   formatDateJa,
   formatDateSlash,
   formatMoney,
@@ -73,7 +74,7 @@ export default function StrategyCompare() {
 
   async function submit() {
     setFormError('')
-    if (!quote) return setFormError('銘柄が確定していません。正しい銘柄コードを入力してください。')
+    if (!quote) return setFormError('銘柄が確定していません。証券コードを入力するか、候補から銘柄を選んでください。')
     if (!start) return setFormError('開始日を入力してください。')
     if (start > todayISO()) return setFormError('開始日には過去の日付を指定してください。')
     const monthlyNum = Number(monthly)
@@ -242,7 +243,7 @@ function StrategyResult({ result }: { result: StrategyComparison }) {
           一括投資 vs 積立投資
         </h1>
         <p className="mt-2 text-sm text-muted">
-          {result.name}（{result.ticker}）・{formatDateJa(result.startDate)}から
+          {result.name}（{displayCode(result.ticker)}）・{formatDateJa(result.startDate)}から
           {result.months}か月・投資総額 {formatMoney(result.totalInvested, c)}
         </p>
       </div>

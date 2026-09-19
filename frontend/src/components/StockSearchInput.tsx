@@ -1,16 +1,18 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useId, useRef, useState } from 'react'
 import { api, ApiError } from '../lib/api'
-import type { Quote } from '../lib/types'
-import { formatPrice, formatPercent } from '../lib/format'
-import { Field, Input } from './ui/Field'
-import { SearchIcon } from './Icons'
+import type { Quote, SymbolSearchResult } from '../lib/types'
+import { formatPercent, formatPrice } from '../lib/format'
+import { Field } from './ui/Field'
 import { StockAvatar } from './StockAvatar'
 import { Spinner } from './ui/States'
 import { Change } from './Change'
+import { SymbolCombobox } from './SymbolCombobox'
 
 /**
- * 銘柄入力。日本株は「5401」だけで 5401.T として検索できる。
- * 入力が止まってから問い合わせ、結果をカードで表示する。
+ * 銘柄入力（検索候補つき）＋選んだ銘柄の確認カード。
+ *
+ * 日本株は「5401」「150A」のような証券コードや「日本製鉄」のような社名、
+ * 米国株は「AAPL」や「Apple」で探せる。選ばれた銘柄は最新株価まで取得して親に渡す。
  */
 export function StockSearchInput({
   value,
@@ -32,27 +34,31 @@ export function StockSearchInput({
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'ok'>('idle')
   const [error, setError] = useState('')
   const requestId = useRef(0)
+  const resolvedRef = useRef(onResolved)
+  resolvedRef.current = onResolved
 
-  useEffect(() => {
-    const raw = value.trim()
-    if (raw.length < 1) {
-      setStatus('idle')
-      setQuote(null)
+  const onPick = useCallback(
+    async (picked: SymbolSearchResult | null) => {
+      const myId = ++requestId.current
+      if (!picked) {
+        setQuote(null)
+        setStatus('idle')
+        setError('')
+        resolvedRef.current(null)
+        return
+      }
+      setStatus('loading')
       setError('')
-      onResolved(null)
-      return
-    }
-
-    const myId = ++requestId.current
-    setStatus('loading')
-    setError('')
-    const timer = setTimeout(async () => {
       try {
-        const q = await api.quote(raw)
+        // 存在を確認できていない候補（辞書に無い新しいコードなど）は、入力そのものを渡して
+        // バックエンドのフォールバック（150A → 150A.T → 150A）に任せる
+        const q = await api.quote(picked.verified ? picked.ticker : picked.code)
         if (myId !== requestId.current) return
-        setQuote(q)
+        // 日本株は辞書の日本語名、米国株は取得した名前を優先
+        const merged: Quote = { ...q, name: picked.verified ? picked.name : (q.name ?? picked.name) }
+        setQuote(merged)
         setStatus('ok')
-        onResolved(q)
+        resolvedRef.current(merged)
       } catch (e) {
         if (myId !== requestId.current) return
         setQuote(null)
@@ -64,42 +70,29 @@ export function StockSearchInput({
               ? e.message
               : '株価データを取得できませんでした。',
         )
-        onResolved(null)
+        resolvedRef.current(null)
       }
-    }, 550)
-
-    return () => clearTimeout(timer)
-    // onResolved は毎レンダー変わり得るため依存に含めない
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
+    },
+    [],
+  )
 
   return (
     <div>
       <Field
         label={label}
         htmlFor={id}
-        hint="日本株は証券コード（例：5401）、米国株はティッカー（例：AAPL）を入力してください。"
+        hint="証券コード（5401・150A）、ティッカー（AAPL）、社名（日本製鉄・Apple）のどれでも探せます。"
       >
-        <div className="relative">
-          <Input
-            id={id}
-            value={value}
-            autoFocus={autoFocus}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="5401 / 7203 / AAPL / NVDA"
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
-            aria-describedby={`${id}-result`}
-            className="pr-11"
-          />
-          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-faint">
-            {status === 'loading' ? <Spinner /> : <SearchIcon />}
-          </span>
-        </div>
+        <SymbolCombobox
+          id={id}
+          value={value}
+          onChange={onChange}
+          onPick={onPick}
+          autoFocus={autoFocus}
+        />
       </Field>
 
-      <div id={`${id}-result`} aria-live="polite" className="mt-3">
+      <div aria-live="polite" className="mt-3">
         {status === 'loading' ? (
           <div className="flex items-center gap-2 rounded-xl border border-line bg-canvas-2 px-4 py-3 text-sm text-muted">
             <Spinner /> 株価データを取得中…
@@ -114,7 +107,7 @@ export function StockSearchInput({
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-ink">{quote.name ?? quote.ticker}</p>
               <p className="text-xs text-muted">
-                {quote.ticker}
+                {quote.ticker.replace(/\.T$/, '')}
                 <span className="mx-1.5 text-line">|</span>
                 {quote.market === 'JP' ? '日本株' : '米国株'}
               </p>

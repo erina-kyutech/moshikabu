@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { PageContainer, PageHeader } from '../components/PageHeader'
 import { Card, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -6,6 +6,7 @@ import { Field, Input, RadioGroup } from '../components/ui/Field'
 import { Badge } from '../components/ui/Badge'
 import { ErrorBlock, LoadingBlock } from '../components/ui/States'
 import { TickerRowInput } from '../components/TickerRowInput'
+import type { ResolvedSymbol } from '../components/TickerRowInput'
 import { StockAvatar } from '../components/StockAvatar'
 import { Change } from '../components/Change'
 import { SimulationNote } from '../components/Disclaimer'
@@ -16,6 +17,7 @@ import { ArrowLeftIcon, InfoIcon, SplitIcon } from '../components/Icons'
 import { api, ApiError } from '../lib/api'
 import type { BaseCurrency, Comparison, Currency } from '../lib/types'
 import {
+  displayCode,
   formatDateJa,
   formatMoney,
   formatPercent,
@@ -49,8 +51,18 @@ const fiveYearsAgo = () => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-01`
 }
 
+interface Row {
+  id: number
+  text: string
+  /** 候補から確定した銘柄（未確定なら null） */
+  resolved: ResolvedSymbol | null
+}
+
+let nextRowId = 0
+const makeRow = (text = ''): Row => ({ id: nextRowId++, text, resolved: null })
+
 export default function Compare() {
-  const [tickers, setTickers] = useState<string[]>(DEFAULT_TICKERS)
+  const [rows, setRows] = useState<Row[]>(() => DEFAULT_TICKERS.map((t) => makeRow(t)))
   const [date, setDate] = useState(fiveYearsAgo())
   const [amount, setAmount] = useState('1000000')
   const [base, setBase] = useState<BaseCurrency>('JPY')
@@ -60,29 +72,43 @@ export default function Compare() {
   const [formError, setFormError] = useState('')
   const [result, setResult] = useState<Comparison | null>(null)
 
-  const setTickerAt = (i: number, v: string) =>
-    setTickers((prev) => prev.map((t, n) => (n === i ? v : t)))
+  const setText = (id: number, text: string) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, text } : r)))
 
-  const addTicker = (value = '') =>
-    setTickers((prev) => (prev.length >= MAX_TICKERS ? prev : [...prev, value]))
+  const setResolved = useCallback(
+    (id: number, resolved: ResolvedSymbol | null) =>
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, resolved } : r))),
+    [],
+  )
 
-  const removeTicker = (i: number) =>
-    setTickers((prev) => (prev.length <= 1 ? prev : prev.filter((_, n) => n !== i)))
+  const addRow = (text = '') =>
+    setRows((prev) => (prev.length >= MAX_TICKERS ? prev : [...prev, makeRow(text)]))
+
+  const removeRow = (id: number) =>
+    setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)))
 
   const addPreset = (ticker: string) => {
-    setTickers((prev) => {
-      if (prev.some((t) => t.trim().toUpperCase() === ticker.toUpperCase())) return prev
-      const emptyIndex = prev.findIndex((t) => !t.trim())
-      if (emptyIndex >= 0) return prev.map((t, n) => (n === emptyIndex ? ticker : t))
+    setRows((prev) => {
+      const key = ticker.toUpperCase()
+      if (prev.some((r) => r.text.trim().toUpperCase() === key)) return prev
+      const empty = prev.find((r) => !r.text.trim())
+      if (empty) return prev.map((r) => (r.id === empty.id ? { ...r, text: ticker, resolved: null } : r))
       if (prev.length >= MAX_TICKERS) return prev
-      return [...prev, ticker]
+      return [...prev, makeRow(ticker)]
     })
   }
 
   const submit = async () => {
     setFormError('')
-    const filled = tickers.map((t) => t.trim()).filter(Boolean)
-    if (filled.length === 0) return setFormError('比較する銘柄を1つ以上入力してください。')
+    const filledRows = rows.filter((r) => r.text.trim())
+    if (filledRows.length === 0) return setFormError('比較する銘柄を1つ以上入力してください。')
+    const unresolved = filledRows.findIndex((r) => !r.resolved)
+    if (unresolved >= 0) {
+      return setFormError(
+        `${rows.indexOf(filledRows[unresolved]) + 1}行目の銘柄が確定していません。候補から銘柄を選んでください。`,
+      )
+    }
+    const filled = filledRows.map((r) => r.resolved!.ticker)
     if (!date) return setFormError('開始日を入力してください。')
     if (date > todayISO()) return setFormError('開始日には過去の日付を指定してください。')
     const amountNum = Number(amount)
@@ -175,19 +201,20 @@ export default function Compare() {
             <p className="mb-2 block text-sm font-medium text-ink-soft">
               比較する銘柄
               <span className="ml-2 text-xs font-normal text-muted">
-                {tickers.filter((t) => t.trim()).length} / {MAX_TICKERS}
+                {rows.filter((r) => r.text.trim()).length} / {MAX_TICKERS}
               </span>
             </p>
             <div className="space-y-2.5">
-              {tickers.map((t, i) => (
+              {rows.map((row, i) => (
                 <TickerRowInput
-                  key={i}
+                  key={row.id}
                   index={i}
-                  value={t}
+                  value={row.text}
                   color={seriesColor(i)}
-                  canRemove={tickers.length > 1}
-                  onChange={(v) => setTickerAt(i, v)}
-                  onRemove={() => removeTicker(i)}
+                  canRemove={rows.length > 1}
+                  onChange={(v) => setText(row.id, v)}
+                  onResolved={(r) => setResolved(row.id, r)}
+                  onRemove={() => removeRow(row.id)}
                 />
               ))}
             </div>
@@ -195,13 +222,13 @@ export default function Compare() {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button
                 variant="secondary"
-                onClick={() => addTicker()}
-                disabled={tickers.length >= MAX_TICKERS}
+                onClick={() => addRow()}
+                disabled={rows.length >= MAX_TICKERS}
                 className="h-10 px-3 text-sm"
               >
                 ＋ 銘柄を追加
               </Button>
-              <span className="text-xs text-muted">日本株は証券コード（例：5401）でOK</span>
+              <span className="text-xs text-muted">証券コード（5401・150A）や社名でも探せます</span>
             </div>
 
             <div className="mt-4">
@@ -286,7 +313,7 @@ function CompareResult({ result }: { result: Comparison }) {
         .map((item, i) => ({
           key: item.key,
           label: item.name.length > 16 ? `${item.name.slice(0, 16)}…` : item.name,
-          sublabel: item.ticker,
+          sublabel: displayCode(item.ticker),
           color: seriesColor(i),
         })),
     [result.items],
@@ -358,7 +385,7 @@ function CompareResult({ result }: { result: Comparison }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-bold text-ink">{item.name}</p>
                   <p className="text-xs text-muted">
-                    {item.ticker}・{item.market === 'JP' ? '日本株' : '米国株'}
+                    {displayCode(item.ticker)}・{item.market === 'JP' ? '日本株' : '米国株'}
                   </p>
                 </div>
                 <div className="ml-auto text-right">
@@ -442,7 +469,7 @@ function CompareResult({ result }: { result: Comparison }) {
                       />
                       <span className="min-w-0">
                         <span className="block truncate font-semibold text-ink">{item.name}</span>
-                        <span className="block text-xs text-muted">{item.ticker}</span>
+                        <span className="block text-xs text-muted">{displayCode(item.ticker)}</span>
                       </span>
                     </div>
                   </td>

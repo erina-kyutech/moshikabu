@@ -11,6 +11,7 @@ import { ListIcon } from '../components/Icons'
 import { usePositions } from '../hooks/usePositions'
 import type { Position } from '../lib/storage'
 import {
+  displayCode,
   formatDateTimeJa,
   formatHoldingPeriod,
   formatMoney,
@@ -173,7 +174,7 @@ export default function TradeHistory() {
                         <StockAvatar ticker={row.position.ticker} name={row.position.name} size="sm" />
                         <span className="min-w-0">
                           <span className="block truncate font-semibold text-ink">{row.position.name}</span>
-                          <span className="block text-xs text-muted">{row.position.ticker}</span>
+                          <span className="block text-xs text-muted">{displayCode(row.position.ticker)}</span>
                         </span>
                       </Link>
                     </td>

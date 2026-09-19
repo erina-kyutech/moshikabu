@@ -17,6 +17,8 @@ from ..schemas import (
     SymbolInfoOut,
 )
 from ..services.simulation import downsample
+from ..services.search import resolve
+from ..symbols import clean, describe
 from ..symbols import meta as symbol_meta
 
 router = APIRouter(prefix="/api", tags=["stock"])
@@ -41,8 +43,20 @@ def _upstream_error() -> HTTPException:
 
 @router.get("/stock/{ticker}", response_model=QuoteOut)
 def get_stock(ticker: str) -> QuoteOut:
+    """銘柄情報＋最新価格。
+
+    「150A」のような入力は 150A.T → 150A の順に取得を試し、見つかったものを返す。
+    """
     provider = get_provider()
-    m = symbol_meta(ticker)
+    try:
+        m = describe(resolve(ticker))
+    except ValueError:
+        raise HTTPException(status_code=400, detail={"code": "BAD_INPUT", "message": "銘柄を入力してください。"})
+    except SymbolNotFoundError:
+        # 「150A.T」のような内部の形ではなく、ユーザーが入力した形で伝える
+        raise _not_found(clean(ticker))
+    except MarketDataError:
+        raise _upstream_error()
     try:
         info = provider.get_info(m.ticker)
         quote = provider.get_quote(m.ticker)
@@ -66,8 +80,8 @@ def get_stock(ticker: str) -> QuoteOut:
 @router.get("/stock/{ticker}/info", response_model=SymbolInfoOut)
 def get_stock_info(ticker: str) -> SymbolInfoOut:
     provider = get_provider()
-    m = symbol_meta(ticker)
     try:
+        m = describe(resolve(ticker))
         info = provider.get_info(m.ticker)
     except SymbolNotFoundError:
         raise _not_found(m.ticker)

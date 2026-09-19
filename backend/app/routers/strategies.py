@@ -42,6 +42,8 @@ from ..services.strategies import (
     simulate_lump_investment,
     simulate_recurring,
 )
+from ..services.search import resolve
+from ..symbols import describe
 from ..symbols import meta as symbol_meta
 
 router = APIRouter(prefix="/api/simulate", tags=["simulate"])
@@ -96,7 +98,7 @@ def _money_for(currency: str, base: str, start: date) -> Money:
 def _fetch(ticker: str, start: date) -> tuple[SymbolInfo, list[PricePoint], list[Split]]:
     """銘柄情報・株価履歴・分割情報をまとめて取得する。"""
     provider = get_provider()
-    m = symbol_meta(ticker)
+    m = describe(resolve(ticker))
     info = provider.get_info(m.ticker)
     points = provider.get_history(m.ticker, start=start)
     if not points:
@@ -125,7 +127,8 @@ def compare(
     if len(raw) > MAX_COMPARE_TICKERS:
         raise _bad_input(f"比較できる銘柄は最大{MAX_COMPARE_TICKERS}件です。")
 
-    # 同じ銘柄の重複を除く（正規化後で判定）
+    # 同じ銘柄の重複を除く（判定は正規化後、取得には入力そのものを渡して
+    # 「150A → 150A.T → 150A」のフォールバックを効かせる）
     seen: set[str] = set()
     normalized: list[str] = []
     for t in raw:
@@ -135,7 +138,7 @@ def compare(
             continue
         if n not in seen:
             seen.add(n)
-            normalized.append(n)
+            normalized.append(t)
 
     def load(ticker: str):
         try:
@@ -159,7 +162,7 @@ def compare(
             continue
 
         info, points, splits = payload
-        m = symbol_meta(ticker)
+        m = describe(info.ticker)  # 入力（150A / 日本製鉄）ではなく解決済みのティッカー
         # 日経平均 (^N225) のように、サフィックスからは通貨を判断できない銘柄があるため
         # プロバイダが返す通貨を優先する
         currency = info.currency or m.currency
@@ -271,13 +274,15 @@ def recurring(
         raise _bad_input("積立開始日には過去の日付を指定してください。")
 
     buy_day = _parse_buy_day(buyDay)
-    m = symbol_meta(ticker)
     try:
-        info, points, splits = _fetch(m.ticker, start)
+        info, points, splits = _fetch(ticker, start)
+    except ValueError:
+        raise _bad_input("銘柄を入力してください。")
     except SymbolNotFoundError:
-        raise _not_found(m.ticker)
+        raise _not_found(ticker)
     except MarketDataError:
         raise _upstream()
+    m = describe(info.ticker)
 
     currency = info.currency or m.currency
     money = _money_for(currency, base, start)
@@ -358,13 +363,15 @@ def strategy(
         raise _bad_input("開始日には過去の日付を指定してください。")
 
     buy_day = _parse_buy_day(buyDay)
-    m = symbol_meta(ticker)
     try:
-        info, points, splits = _fetch(m.ticker, start)
+        info, points, splits = _fetch(ticker, start)
+    except ValueError:
+        raise _bad_input("銘柄を入力してください。")
     except SymbolNotFoundError:
-        raise _not_found(m.ticker)
+        raise _not_found(ticker)
     except MarketDataError:
         raise _upstream()
+    m = describe(info.ticker)
 
     currency = info.currency or m.currency
     money = _money_for(currency, base, start)

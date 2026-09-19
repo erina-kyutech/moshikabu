@@ -14,6 +14,7 @@ import type {
   RecurringSimulation,
   StrategyComparison,
   SymbolInfo,
+  SymbolSearchResponse,
 } from './types'
 
 const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '')
@@ -32,7 +33,11 @@ export class ApiError extends Error {
 const NETWORK_MESSAGE =
   '株価データを取得できませんでした。しばらくしてからもう一度お試しください。'
 
-async function request<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
+async function request<T>(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined>,
+  signal?: AbortSignal,
+): Promise<T> {
   const url = new URL(`${BASE}${path}`, window.location.origin)
   for (const [k, v] of Object.entries(params ?? {})) {
     if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v))
@@ -40,8 +45,9 @@ async function request<T>(path: string, params?: Record<string, string | number 
 
   let res: Response
   try {
-    res = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
-  } catch {
+    res = await fetch(url.toString(), { headers: { Accept: 'application/json' }, signal })
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw e
     throw new ApiError(NETWORK_MESSAGE, 'NETWORK_ERROR')
   }
 
@@ -71,6 +77,10 @@ async function request<T>(path: string, params?: Record<string, string | number 
 
 export const api = {
   health: () => request<{ status: string; provider: string }>('/api/health'),
+
+  /** 社名・証券コード・ティッカーで銘柄候補を探す（150A / 日本製鉄 / Apple） */
+  search: (q: string, limit = 8, signal?: AbortSignal) =>
+    request<SymbolSearchResponse>('/api/search', { q, limit }, signal),
 
   /** 銘柄情報＋最新価格 */
   quote: (ticker: string) => request<Quote>(`/api/stock/${encodeURIComponent(ticker)}`),

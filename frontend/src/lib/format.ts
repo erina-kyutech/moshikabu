@@ -96,3 +96,9 @@ export function formatHoldingPeriod(fromISO: string, toISO: string): string {
 }
 
 export const signOf = (v: number): 'gain' | 'loss' | 'flat' => (v > 0 ? 'gain' : v < 0 ? 'loss' : 'flat')
+
+/**
+ * 画面に出す銘柄コード。Yahoo Finance 用の「.T」は内部の都合なので見せない。
+ *   150A.T → 150A、5401.T → 5401、AAPL → AAPL
+ */
+export const displayCode = (ticker: string): string => ticker.replace(/\.T$/i, '')
