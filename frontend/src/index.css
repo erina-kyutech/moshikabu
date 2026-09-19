@@ -28,6 +28,12 @@
   --color-loss: #ef4444;
   --color-loss-soft: #fef2f2;
 
+  /* 機能ごとのアクセント（ホームのカードと各画面の見出しで対応させる） */
+  --color-compare: #7c3aed;      /* 複数銘柄比較：パープル */
+  --color-compare-soft: #f5f3ff;
+  --color-recurring: #ea580c;    /* 積立投資：オレンジ */
+  --color-recurring-soft: #fff7ed;
+
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.04);
   --shadow-card-hover: 0 8px 28px rgba(15, 23, 42, 0.08);
 }

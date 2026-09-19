@@ -3,7 +3,18 @@
  * データ取得先の差し替えはバックエンドの MarketDataProvider 側で行うため、
  * ここではエンドポイントの形だけを知っていればよい。
  */
-import type { Actions, Fx, History, PastSimulation, Quote, SymbolInfo } from './types'
+import type {
+  Actions,
+  BaseCurrency,
+  Comparison,
+  Fx,
+  History,
+  PastSimulation,
+  Quote,
+  RecurringSimulation,
+  StrategyComparison,
+  SymbolInfo,
+} from './types'
 
 const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '')
 
@@ -94,4 +105,45 @@ export const api = {
 
   usdjpy: (opts: { start?: string; end?: string; maxPoints?: number } = {}) =>
     request<Fx>('/api/fx/usdjpy', { ...opts }),
+
+  /** 複数銘柄に同額を投じた場合の比較 */
+  compare: (opts: {
+    tickers: string[]
+    date: string
+    amount: number
+    base?: BaseCurrency
+    fractional?: boolean
+    maxPoints?: number
+  }) =>
+    request<Comparison>('/api/simulate/compare', {
+      tickers: opts.tickers.join(','),
+      date: opts.date,
+      amount: opts.amount,
+      base: opts.base,
+      fractional: opts.fractional,
+      maxPoints: opts.maxPoints,
+    }),
+
+  /** 毎月一定額を積み立てた場合 */
+  recurring: (opts: {
+    ticker: string
+    start: string
+    amount: number
+    buyDay?: string
+    base?: BaseCurrency
+    fractional?: boolean
+    maxPoints?: number
+  }) => request<RecurringSimulation>('/api/simulate/recurring', { ...opts }),
+
+  /** 一括投資と積立投資の比較 */
+  strategy: (opts: {
+    ticker: string
+    start: string
+    monthly: number
+    months: number
+    buyDay?: string
+    base?: BaseCurrency
+    fractional?: boolean
+    maxPoints?: number
+  }) => request<StrategyComparison>('/api/simulate/strategy', { ...opts }),
 }

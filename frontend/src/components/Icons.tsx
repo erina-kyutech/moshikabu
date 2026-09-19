@@ -104,6 +104,28 @@ export const TrashIcon = ({ className = base }: P) => (
   </svg>
 )
 
+export const CompareIcon = ({ className = base }: P) => (
+  <svg viewBox="0 0 24 24" className={className} {...stroke} aria-hidden>
+    <path d="M4 19V9M10 19V5M16 19v-7M22 19h-2" />
+    <path d="M2 19h2" />
+    <path d="M4 9 10 5l6 7" strokeDasharray="0" opacity="0.45" />
+  </svg>
+)
+
+export const StackIcon = ({ className = base }: P) => (
+  <svg viewBox="0 0 24 24" className={className} {...stroke} aria-hidden>
+    <path d="M4 18h4v3H4zM10 13h4v8h-4zM16 8h4v13h-4z" />
+    <path d="M4 6h9M9.5 3 13 6l-3.5 3" opacity="0.55" />
+  </svg>
+)
+
+export const CalendarIcon = ({ className = base }: P) => (
+  <svg viewBox="0 0 24 24" className={className} {...stroke} aria-hidden>
+    <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+    <path d="M3.5 9.5h17M8 3.5v3M16 3.5v3" />
+  </svg>
+)
+
 export const Logo = ({ className = 'h-7 w-7' }: P) => (
   <svg viewBox="0 0 64 64" className={className} aria-hidden>
     <rect width="64" height="64" rx="16" fill="#2563EB" />

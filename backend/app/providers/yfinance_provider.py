@@ -54,11 +54,16 @@ class YFinanceProvider(MarketDataProvider):
             if not name and not has_price:
                 raise SymbolNotFoundError(m.ticker)
 
+            # 日経平均 (^N225) のようにサフィックスから市場を判断できない銘柄があるため、
+            # 通貨が取れる場合はそちらを優先する
+            currency = raw.get("currency") or m.currency
+            market = "JP" if currency == "JPY" else m.market
+
             return SymbolInfo(
                 ticker=m.ticker,
                 name=jp_name_for(m.ticker) or name or m.ticker,
-                market=m.market,
-                currency=raw.get("currency") or m.currency,
+                market=market,
+                currency=currency,
                 exchange=raw.get("fullExchangeName") or raw.get("exchange"),
                 sector=raw.get("sector"),
             )

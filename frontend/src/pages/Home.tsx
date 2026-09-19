@@ -1,5 +1,13 @@
 import { Link } from 'react-router-dom'
-import { ArrowRightIcon, ChartIcon, ClockIcon } from '../components/Icons'
+import { MODES, ModeCard } from '../components/ModeCard'
+import { ChartIcon, ClockIcon, CompareIcon, StackIcon } from '../components/Icons'
+
+const ICONS = {
+  clock: <ClockIcon className="h-7 w-7" />,
+  chart: <ChartIcon className="h-7 w-7" />,
+  compare: <CompareIcon className="h-7 w-7" />,
+  stack: <StackIcon className="h-7 w-7" />,
+}
 
 export default function Home() {
   return (
@@ -19,49 +27,20 @@ export default function Home() {
           </p>
         </div>
 
-        {/* 2つのモード：ホームで最初に選ぶのはこの2枚だけ */}
-        <div className="mx-auto max-w-6xl px-4 pb-14 sm:px-6 sm:pb-20">
+        {/* 4つの機能。PCは2×2、スマホは縦1列 */}
+        <div className="mx-auto max-w-5xl px-4 pb-14 sm:px-6 sm:pb-20">
           <div className="grid gap-5 sm:gap-6 md:grid-cols-2">
-            <ModeCard
-              to="/past"
-              tone="brand"
-              icon={<ClockIcon className="h-7 w-7" />}
-              title={
-                <>
-                  もし、あの日
-                  <br />
-                  買っていたら？
-                </>
-              }
-              description={
-                <>
-                  過去の株価から
-                  <br />
-                  今の資産額をシミュレーション
-                </>
-              }
-              cta="シミュレーションする"
-            />
-            <ModeCard
-              to="/invest"
-              tone="gain"
-              icon={<ChartIcon className="h-7 w-7" />}
-              title={
-                <>
-                  今日から
-                  <br />
-                  仮想投資
-                </>
-              }
-              description={
-                <>
-                  現実の株価で
-                  <br />
-                  お金を使わず投資体験
-                </>
-              }
-              cta="仮想投資を始める"
-            />
+            {MODES.map((mode) => (
+              <ModeCard
+                key={mode.to}
+                to={mode.to}
+                tone={mode.tone}
+                icon={ICONS[mode.iconKey]}
+                title={mode.title}
+                description={mode.description}
+                cta={mode.cta}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -70,9 +49,21 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
         <h2 className="text-center text-lg font-bold text-ink sm:text-xl">使い方はかんたん3ステップ</h2>
         <ol className="mt-8 grid gap-4 sm:gap-5 md:grid-cols-3">
-          <Step n={1} title="銘柄を入力する" body="日本株は証券コード（例：5401）、米国株はティッカー（例：AAPL）を入力するだけです。" />
-          <Step n={2} title="日付と株数を決める" body="「あの日」を選ぶか、今日の株価でそのまま仮想購入します。株数でも金額でも指定できます。" />
-          <Step n={3} title="損益をグラフで確認" body="実際の株価にもとづいて、資産がどう増減したかをグラフとカードで確認できます。" />
+          <Step
+            n={1}
+            title="銘柄を入力する"
+            body="日本株は証券コード（例：5401）、米国株はティッカー（例：AAPL）を入力するだけです。"
+          />
+          <Step
+            n={2}
+            title="日付と金額を決める"
+            body="「あの日」を選ぶか、今日から仮想で買うか、毎月いくら積み立てるかを決めます。"
+          />
+          <Step
+            n={3}
+            title="損益をグラフで確認"
+            body="実際の株価にもとづいて、資産がどう増減したかをグラフとカードで確認できます。"
+          />
         </ol>
 
         <div className="mt-12 rounded-2xl border border-line bg-white p-6 text-center shadow-card sm:p-8">
@@ -81,57 +72,15 @@ export default function Home() {
             MoshiKabu は証券口座と接続しません。すべて「買ったことにする」だけの仮想取引です。
             記録はお使いのブラウザにのみ保存されます。
           </p>
+          <p className="mt-4 text-sm text-muted">
+            <Link to="/compare-strategy" className="font-medium text-brand hover:underline">
+              一括投資と積立投資を比べる
+            </Link>
+            {' '}こともできます。
+          </p>
         </div>
       </section>
     </>
-  )
-}
-
-function ModeCard({
-  to,
-  tone,
-  icon,
-  title,
-  description,
-  cta,
-}: {
-  to: string
-  tone: 'brand' | 'gain'
-  icon: React.ReactNode
-  title: React.ReactNode
-  description: React.ReactNode
-  cta: string
-}) {
-  const styles =
-    tone === 'brand'
-      ? {
-          icon: 'bg-brand-soft text-brand',
-          button: 'bg-brand hover:bg-brand-600 shadow-[0_2px_10px_rgba(37,99,235,0.25)]',
-          ring: 'hover:border-brand/30',
-        }
-      : {
-          icon: 'bg-gain-soft text-gain',
-          button: 'bg-gain hover:bg-[#128a3f] shadow-[0_2px_10px_rgba(22,163,74,0.25)]',
-          ring: 'hover:border-gain/30',
-        }
-
-  return (
-    <Link
-      to={to}
-      className={`group flex flex-col rounded-2xl border border-line bg-white p-7 text-center shadow-card transition hover:-translate-y-0.5 hover:shadow-card-hover focus-ring sm:p-9 ${styles.ring}`}
-    >
-      <span className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${styles.icon}`}>
-        {icon}
-      </span>
-      <h2 className="mt-5 text-xl font-bold leading-snug text-ink sm:text-[1.375rem]">{title}</h2>
-      <p className="mt-3 flex-1 text-sm leading-relaxed text-muted sm:text-[0.9375rem]">{description}</p>
-      <span
-        className={`mt-7 inline-flex h-13 w-full items-center justify-center gap-2 rounded-xl text-base font-semibold text-white transition ${styles.button}`}
-      >
-        {cta}
-        <ArrowRightIcon className="h-4 w-4 transition group-hover:translate-x-0.5" />
-      </span>
-    </Link>
   )
 }
 

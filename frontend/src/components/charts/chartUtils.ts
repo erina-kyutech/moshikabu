@@ -10,6 +10,26 @@ export const CHART_COLORS = {
   now: '#16A34A',
 }
 
+/**
+ * 複数銘柄を重ねるときの系列色。
+ * 明度・色相を離して、隣り合う線を見分けやすくしている。
+ */
+export const SERIES_COLORS = [
+  '#2563EB', // ブルー
+  '#16A34A', // グリーン
+  '#7C3AED', // パープル
+  '#EA580C', // オレンジ
+  '#0891B2', // シアン
+  '#BE123C', // ローズ
+  '#65A30D', // ライム
+  '#4338CA', // インディゴ
+  '#B45309', // アンバー
+  '#0F766E', // ティール
+] as const
+
+export const seriesColor = (index: number): string =>
+  SERIES_COLORS[index % SERIES_COLORS.length]
+
 /** 期間の長さに応じて X 軸ラベルの粒度を変える。 */
 export function makeDateTickFormatter(dates: string[]): (v: string) => string {
   if (dates.length === 0) return (v) => v
