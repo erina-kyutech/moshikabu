@@ -126,6 +126,14 @@ export const CalendarIcon = ({ className = base }: P) => (
   </svg>
 )
 
+export const CandleIcon = ({ className = base }: P) => (
+  <svg viewBox="0 0 24 24" className={className} {...stroke} aria-hidden>
+    <path d="M7 4v3M7 17v3M17 3v4M17 16v5" />
+    <rect x="4.5" y="7" width="5" height="10" rx="1" />
+    <rect x="14.5" y="7" width="5" height="9" rx="1" />
+  </svg>
+)
+
 export const Logo = ({ className = 'h-7 w-7' }: P) => (
   <svg viewBox="0 0 64 64" className={className} aria-hidden>
     <rect width="64" height="64" rx="16" fill="#2563EB" />

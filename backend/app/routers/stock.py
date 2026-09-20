@@ -9,14 +9,18 @@ from ..providers import get_provider
 from ..providers.base import MarketDataError, SymbolNotFoundError
 from ..schemas import (
     ActionsOut,
+    CandleOut,
+    CandlesOut,
     DividendOut,
     HistoryOut,
     PricePointOut,
     QuoteOut,
+    RangeOptionOut,
     SplitOut,
     SymbolInfoOut,
 )
 from ..services.simulation import downsample
+from ..services import candles as candle_service
 from ..services.search import resolve
 from ..symbols import clean, describe
 from ..symbols import meta as symbol_meta
@@ -73,6 +77,9 @@ def get_stock(ticker: str) -> QuoteOut:
         previousClose=quote.previous_close,
         change=quote.change,
         changePercent=quote.change_percent,
+        dayHigh=quote.day_high,
+        dayLow=quote.day_low,
+        volume=quote.volume,
         asOf=quote.as_of,
     )
 
@@ -154,6 +161,9 @@ def _quote_one(ticker: str) -> QuoteOut | None:
         previousClose=quote.previous_close,
         change=quote.change,
         changePercent=quote.change_percent,
+        dayHigh=quote.day_high,
+        dayLow=quote.day_low,
+        volume=quote.volume,
         asOf=quote.as_of,
     )
 
@@ -171,3 +181,85 @@ def get_quotes(tickers: str = Query(..., description="カンマ区切りのテ�
     with ThreadPoolExecutor(max_workers=min(8, len(requested))) as pool:
         results = list(pool.map(_quote_one, requested))
     return [q for q in results if q is not None]
+
+
+@router.get("/stock/{ticker}/candles", response_model=CandlesOut)
+def get_stock_candles(
+    ticker: str,
+    range_: str = Query("1mo", alias="range", description="1d / 5d / 1mo / 3mo / 6mo / 1y / 5y / max"),
+    interval: str | None = Query(None, description="1m / 5m / 15m / 30m / 1h / 1d / 1wk / 1mo"),
+    maxBars: int = Query(candle_service.MAX_BARS, ge=20, le=2000),
+) -> CandlesOut:
+    """チャート用の OHLCV。
+
+    分足は取得できる期間に制限があるため、選べない組み合わせはエラーにせず、
+    その期間で使える時間足に切り替えて `notice` で理由を返す。
+    """
+    provider = get_provider()
+    try:
+        m = describe(resolve(ticker))
+        info = provider.get_info(m.ticker)
+    except ValueError:
+        raise HTTPException(status_code=400, detail={"code": "BAD_INPUT", "message": "銘柄を入力してください。"})
+    except SymbolNotFoundError:
+        raise _not_found(clean(ticker))
+    except MarketDataError:
+        raise _upstream_error()
+
+    spec, used, notice = candle_service.resolve(range_, interval)
+    try:
+        series = provider.get_candles(m.ticker, spec.period, used)
+        # 連休などで「1日」の足が空になることがある。その場合は少し広げて表示する
+        if not series.candles and spec.key in ("1d", "5d"):
+            fallback = candle_service.RANGE_BY_KEY["5d" if spec.key == "1d" else "1mo"]
+            retry_interval = used if used in fallback.intervals else fallback.default
+            series = provider.get_candles(m.ticker, fallback.period, retry_interval)
+            if series.candles:
+                notice = f"{spec.label}のデータが無かったため、{fallback.label}で表示しています。"
+                spec, used = fallback, retry_interval
+    except SymbolNotFoundError:
+        raise _not_found(m.ticker)
+    except MarketDataError:
+        raise _upstream_error()
+
+    bars = [
+        candle_service.Bar(
+            time=c.time, open=c.open, high=c.high, low=c.low, close=c.close, volume=c.volume
+        )
+        for c in series.candles
+    ]
+    bars, factor = candle_service.aggregate(bars, maxBars)
+
+    return CandlesOut(
+        ticker=m.ticker,
+        code=m.symbol_hint,
+        name=info.name,
+        market=info.market,
+        currency=info.currency,
+        exchange=info.exchange,
+        range=spec.key,
+        interval=used,
+        requestedInterval=interval,
+        notice=notice,
+        timezone=series.timezone or None,
+        refreshSeconds=candle_service.refresh_seconds(used),
+        aggregatedBy=factor,
+        rangeOptions=[
+            RangeOptionOut(range=r.key, label=r.label, intervals=list(r.intervals), default=r.default)
+            for r in candle_service.RANGES
+        ],
+        intervalLabels=candle_service.INTERVAL_LABELS,
+        candles=[
+            CandleOut(
+                t=b.time,
+                label=candle_service.axis_label(b.time, used),
+                fullLabel=candle_service.full_label(b.time, used),
+                o=round(b.open, 4),
+                h=round(b.high, 4),
+                l=round(b.low, 4),
+                c=round(b.close, 4),
+                v=b.volume,
+            )
+            for b in bars
+        ],
+    )

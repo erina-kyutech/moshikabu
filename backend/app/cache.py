@@ -17,6 +17,7 @@ _store: dict[str, tuple[float, Any]] = {}
 # 日足は数分キャッシュ、現在値は短め
 TTL_QUOTE = 60          # 秒
 TTL_HISTORY = 300
+TTL_INTRADAY = 60       # 分足は短め（デイトレ画面が定期取得するため）
 TTL_ACTIONS = 3600
 TTL_INFO = 3600
 

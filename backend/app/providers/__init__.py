@@ -8,6 +8,8 @@ import os
 from functools import lru_cache
 
 from .base import (
+    Candle,
+    CandleSeries,
     CorporateActions,
     Dividend,
     MarketDataError,
@@ -21,6 +23,8 @@ from .base import (
 )
 
 __all__ = [
+    "Candle",
+    "CandleSeries",
     "CorporateActions",
     "Dividend",
     "MarketDataError",

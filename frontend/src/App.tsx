@@ -16,6 +16,7 @@ const Simulations = lazy(() => import('./pages/Simulations'))
 const Compare = lazy(() => import('./pages/Compare'))
 const Recurring = lazy(() => import('./pages/Recurring'))
 const StrategyCompare = lazy(() => import('./pages/StrategyCompare'))
+const DayTrade = lazy(() => import('./pages/DayTrade'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/compare" element={<Compare />} />
             <Route path="/recurring" element={<Recurring />} />
             <Route path="/compare-strategy" element={<StrategyCompare />} />
+            <Route path="/daytrade" element={<DayTrade />} />
             <Route path="/invest" element={<Invest />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/portfolio/:id" element={<HoldingDetail />} />

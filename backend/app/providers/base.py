@@ -37,6 +37,9 @@ class Quote:
     change_percent: float | None
     currency: str
     as_of: datetime
+    day_high: float | None = None
+    day_low: float | None = None
+    volume: float | None = None
 
 
 @dataclass(frozen=True)
@@ -47,6 +50,26 @@ class PricePoint:
     high: float | None = None
     low: float | None = None
     volume: float | None = None
+
+
+@dataclass(frozen=True)
+class Candle:
+    """ローソク足1本。時刻は市場のローカルタイムゾーン。"""
+
+    time: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float | None = None
+
+
+@dataclass(frozen=True)
+class CandleSeries:
+    ticker: str
+    interval: str
+    timezone: str
+    candles: list["Candle"] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -101,6 +124,10 @@ class MarketDataProvider(ABC):
     @abstractmethod
     def get_actions(self, ticker: str, start: date | None = None) -> CorporateActions:
         """株式分割・配当。"""
+
+    @abstractmethod
+    def get_candles(self, ticker: str, period: str, interval: str) -> CandleSeries:
+        """チャート用の OHLCV。period / interval はデータソースの表記に従う。"""
 
     def search(self, query: str, limit: int = 10) -> list[SymbolCandidate]:
         """会社名・ティッカーでの銘柄検索。対応していないデータソースは空を返す。"""

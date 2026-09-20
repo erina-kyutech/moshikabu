@@ -102,3 +102,12 @@ export const signOf = (v: number): 'gain' | 'loss' | 'flat' => (v > 0 ? 'gain' :
  *   150A.T → 150A、5401.T → 5401、AAPL → AAPL
  */
 export const displayCode = (ticker: string): string => ticker.replace(/\.T$/i, '')
+
+/** 出来高。桁が大きいので万・億でまとめる。 */
+export function formatVolume(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  const abs = Math.abs(value)
+  if (abs >= 100_000_000) return `${(value / 100_000_000).toFixed(2)}億`
+  if (abs >= 10_000) return `${(value / 10_000).toFixed(1)}万`
+  return Math.round(value).toLocaleString('ja-JP')
+}

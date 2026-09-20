@@ -15,6 +15,8 @@ from .. import directory
 # プロバイダは確定済みのティッカーを受け取る（.T の付与などの正規化はルーター側の責務）
 from ..symbols import describe as symbol_meta
 from .base import (
+    Candle,
+    CandleSeries,
     CorporateActions,
     Dividend,
     MarketDataError,
@@ -87,6 +89,9 @@ class YFinanceProvider(MarketDataProvider):
                 price = _f(getattr(fi, "last_price", None))
                 prev = _f(getattr(fi, "previous_close", None))
                 currency = getattr(fi, "currency", None) or m.currency
+                day_high = _f(getattr(fi, "day_high", None))
+                day_low = _f(getattr(fi, "day_low", None))
+                volume = _f(getattr(fi, "last_volume", None))
             except Exception as exc:
                 raise MarketDataError(str(exc)) from exc
 
@@ -98,6 +103,9 @@ class YFinanceProvider(MarketDataProvider):
                 price = hist[-1].close
                 prev = hist[-2].close if len(hist) >= 2 else None
                 currency = m.currency
+                day_high = hist[-1].high
+                day_low = hist[-1].low
+                volume = hist[-1].volume
 
             change = None if prev in (None, 0) else price - prev
             pct = None if prev in (None, 0) else (price - prev) / prev * 100
@@ -109,6 +117,9 @@ class YFinanceProvider(MarketDataProvider):
                 change_percent=pct,
                 currency=currency,
                 as_of=datetime.now(timezone.utc),
+                day_high=day_high,
+                day_low=day_low,
+                volume=volume,
             )
 
         return cache.get_or_set(f"quote:{m.ticker}", cache.TTL_QUOTE, load)
@@ -194,6 +205,42 @@ class YFinanceProvider(MarketDataProvider):
             splits=[s for s in actions.splits if s.date >= start],
             dividends=[d for d in actions.dividends if d.date >= start],
         )
+
+    # --------------------------------------------------------------- candles
+    def get_candles(self, ticker: str, period: str, interval: str) -> CandleSeries:
+        m = symbol_meta(ticker)
+        key = f"candles:{m.ticker}:{period}:{interval}"
+        ttl = cache.TTL_INTRADAY if interval.endswith(("m", "h")) else cache.TTL_HISTORY
+
+        def load() -> CandleSeries:
+            try:
+                df = yf.Ticker(m.ticker).history(
+                    period=period,
+                    interval=interval,
+                    auto_adjust=False,
+                    actions=False,
+                    prepost=False,
+                    raise_errors=False,
+                )
+            except Exception as exc:
+                raise MarketDataError(str(exc)) from exc
+
+            if df is None or df.empty:
+                return CandleSeries(ticker=m.ticker, interval=interval, timezone="", candles=[])
+
+            tz = str(getattr(df.index, "tz", "") or "")
+            candles: list[Candle] = []
+            for idx, row in df.iterrows():
+                o, h, low, c = (_f(row.get(k)) for k in ("Open", "High", "Low", "Close"))
+                if None in (o, h, low, c):
+                    continue
+                when = idx.to_pydatetime() if isinstance(idx, pd.Timestamp) else idx
+                candles.append(
+                    Candle(time=when, open=o, high=h, low=low, close=c, volume=_f(row.get("Volume")))
+                )
+            return CandleSeries(ticker=m.ticker, interval=interval, timezone=tz, candles=candles)
+
+        return cache.get_or_set(key, ttl, load)
 
     # ---------------------------------------------------------------- search
     def search(self, query: str, limit: int = 10) -> list[SymbolCandidate]:

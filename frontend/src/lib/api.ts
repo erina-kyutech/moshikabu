@@ -6,6 +6,9 @@
 import type {
   Actions,
   BaseCurrency,
+  CandlesResponse,
+  ChartInterval,
+  ChartRange,
   Comparison,
   Fx,
   History,
@@ -100,6 +103,18 @@ export const api = {
       interval: opts.interval,
       maxPoints: opts.maxPoints,
     }),
+
+  /** チャート用の OHLCV。期間と時間足の組み合わせはバックエンドが検証・補正する */
+  candles: (
+    ticker: string,
+    opts: { range?: ChartRange; interval?: ChartInterval; maxBars?: number } = {},
+    signal?: AbortSignal,
+  ) =>
+    request<CandlesResponse>(
+      `/api/stock/${encodeURIComponent(ticker)}/candles`,
+      { range: opts.range, interval: opts.interval, maxBars: opts.maxBars },
+      signal,
+    ),
 
   actions: (ticker: string, start?: string) =>
     request<Actions>(`/api/stock/${encodeURIComponent(ticker)}/actions`, { start }),

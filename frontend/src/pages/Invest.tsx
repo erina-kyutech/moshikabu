@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageContainer, PageHeader } from '../components/PageHeader'
 import { StockSearchInput } from '../components/StockSearchInput'
@@ -7,12 +7,16 @@ import { Button, ButtonLink } from '../components/ui/Button'
 import { Field, Input, RadioGroup } from '../components/ui/Field'
 import { MetricCard } from '../components/MetricCard'
 import { StockAvatar } from '../components/StockAvatar'
-import { Sparkline } from '../components/charts/Sparkline'
+import { ChartPanel } from '../components/ChartPanel'
+import { QuoteStats } from '../components/QuoteStats'
+import type { ChartMarker } from '../components/charts/MarketChart'
+import { usePositions } from '../hooks/usePositions'
 import { CheckIcon, InfoIcon } from '../components/Icons'
+import { CHART_COLORS } from '../components/charts/chartUtils'
 import { api, ApiError } from '../lib/api'
 import { portfolioRepository } from '../lib/storage'
 import type { Position } from '../lib/storage'
-import type { PricePoint, Quote } from '../lib/types'
+import type { Quote } from '../lib/types'
 import {
   currencySymbol,
   displayCode,
@@ -31,7 +35,6 @@ export default function Invest() {
   const [buyBy, setBuyBy] = useState<BuyBy>('shares')
   const [shares, setShares] = useState('10')
   const [amount, setAmount] = useState('100000')
-  const [spark, setSpark] = useState<PricePoint[]>([])
 
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
@@ -42,27 +45,23 @@ export default function Invest() {
     setFormError('')
   }, [])
 
-  // 銘柄が決まったら直近1か月のミニチャートを取得する
-  useEffect(() => {
-    if (!quote) {
-      setSpark([])
-      return
-    }
-    let cancelled = false
-    const start = new Date()
-    start.setMonth(start.getMonth() - 1)
-    const p = (n: number) => String(n).padStart(2, '0')
-    api
-      .history(quote.ticker, {
-        start: `${start.getFullYear()}-${p(start.getMonth() + 1)}-${p(start.getDate())}`,
-        maxPoints: 60,
-      })
-      .then((h) => !cancelled && setSpark(h.points))
-      .catch(() => !cancelled && setSpark([]))
-    return () => {
-      cancelled = true
-    }
-  }, [quote])
+  const { positions } = usePositions()
+
+  // すでに仮想保有している場合、チャートに購入地点を出す
+  const markers: ChartMarker[] = useMemo(
+    () =>
+      quote
+        ? positions
+            .filter((p) => p.ticker === quote.ticker && p.status === 'open')
+            .map((p) => ({
+              time: p.buyAt,
+              price: p.buyPrice,
+              side: 'buy' as const,
+              label: `▲ 購入 ${formatPrice(p.buyPrice, p.currency)}`,
+            }))
+        : [],
+    [quote, positions],
+  )
 
   const currency = quote?.currency ?? 'JPY'
 
@@ -170,6 +169,29 @@ export default function Invest() {
         description="今この株を買ったことにして、仮想ポートフォリオに追加します。実際の取引は行われません。"
       />
 
+      {quote ? (
+        <Card className="mb-6" padding="md">
+          <QuoteStats quote={quote} />
+          <div className="mt-5">
+            <ChartPanel
+              ticker={quote.ticker}
+              currency={quote.currency}
+              defaultRange="1mo"
+              defaultType="line"
+              markers={markers}
+              priceLines={[
+                {
+                  price: quote.price,
+                  label: '現在',
+                  color: CHART_COLORS.axis,
+                },
+              ]}
+              height={300}
+            />
+          </div>
+        </Card>
+      ) : null}
+
       <Card padding="lg">
         <div className="space-y-6">
           <StockSearchInput
@@ -233,34 +255,15 @@ export default function Invest() {
             </Field>
           )}
 
-          {quote ? (
-            <div className="rounded-2xl border border-line bg-canvas-2 p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-medium text-muted">現在の株価（参考）</p>
-                  <p className="num mt-1 text-3xl text-ink">{formatPrice(quote.price, currency)}</p>
-                  <p className="mt-1 text-xs text-muted">{formatDateTimeJa(quote.asOf)} 更新</p>
-                </div>
-                <div className="w-32 sm:w-40">
-                  <Sparkline
-                    data={spark.map((p) => ({ date: p.date, price: p.close }))}
-                    tone={(quote.changePercent ?? 0) >= 0 ? 'gain' : 'loss'}
-                  />
-                  <p className="mt-0.5 text-right text-[0.6875rem] text-faint">直近1か月</p>
-                </div>
-              </div>
-
-              {previewShares != null ? (
-                <p className="mt-4 border-t border-line pt-4 text-sm text-ink-soft">
-                  <span className="num font-semibold text-ink">{formatShares(previewShares)}株</span>
-                  {' を '}
-                  <span className="num font-semibold text-ink">{formatPrice(quote.price, currency)}</span>
-                  {' で購入 → 投資金額 '}
-                  <span className="num font-semibold text-ink">
-                    {formatMoney(previewShares * quote.price, currency)}
-                  </span>
-                </p>
-              ) : null}
+          {quote && previewShares != null ? (
+            <div className="rounded-2xl border border-line bg-canvas-2 p-4 text-sm text-ink-soft">
+              <span className="num font-semibold text-ink">{formatShares(previewShares)}株</span>
+              {' を '}
+              <span className="num font-semibold text-ink">{formatPrice(quote.price, currency)}</span>
+              {' で購入 → 投資金額 '}
+              <span className="num font-semibold text-ink">
+                {formatMoney(previewShares * quote.price, currency)}
+              </span>
             </div>
           ) : null}
 

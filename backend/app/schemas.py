@@ -24,6 +24,9 @@ class QuoteOut(BaseModel):
     previousClose: float | None = None
     change: float | None = None
     changePercent: float | None = None
+    dayHigh: float | None = None
+    dayLow: float | None = None
+    volume: float | None = None
     asOf: datetime
 
 
@@ -126,3 +129,42 @@ class SearchOut(BaseModel):
     query: str
     directoryAsOf: str | None = None
     results: list[SearchResultOut]
+
+
+class CandleOut(BaseModel):
+    t: datetime          # 市場のローカル時刻（タイムゾーン付き）
+    label: str           # 横軸用（09:05 / 9/18）
+    fullLabel: str       # ツールチップ用
+    o: float
+    h: float
+    l: float
+    c: float
+    v: float | None = None
+
+
+class RangeOptionOut(BaseModel):
+    range: str
+    label: str
+    intervals: list[str]
+    default: str
+
+
+class CandlesOut(BaseModel):
+    ticker: str
+    code: str
+    name: str
+    market: str
+    currency: str
+    exchange: str | None = None
+
+    range: str
+    interval: str          # 実際に使った時間足
+    requestedInterval: str | None = None
+    notice: str | None = None    # 「この期間では5分足を利用できません」など
+    timezone: str | None = None
+    refreshSeconds: int
+    aggregatedBy: int = 1        # 本数が多いときに何本ずつまとめたか
+
+    rangeOptions: list[RangeOptionOut] = Field(default_factory=list)
+    intervalLabels: dict[str, str] = Field(default_factory=dict)
+    candles: list[CandleOut] = Field(default_factory=list)

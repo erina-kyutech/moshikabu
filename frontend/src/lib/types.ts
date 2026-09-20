@@ -12,6 +12,10 @@ export interface Quote {
   previousClose?: number | null
   change?: number | null
   changePercent?: number | null
+  /** 当日の高値・安値・出来高（チャート上部の銘柄情報に使う） */
+  dayHigh?: number | null
+  dayLow?: number | null
+  volume?: number | null
   asOf: string
 }
 
@@ -272,4 +276,54 @@ export interface SymbolSearchResponse {
   query: string
   directoryAsOf?: string | null
   results: SymbolSearchResult[]
+}
+
+// -------------------------------------------------------------- チャート
+export type ChartRange = '1d' | '5d' | '1mo' | '3mo' | '6mo' | '1y' | '5y' | 'max'
+export type ChartInterval = '1m' | '5m' | '15m' | '30m' | '1h' | '1d' | '1wk' | '1mo'
+export type ChartType = 'line' | 'candle'
+
+export interface Candle {
+  /** 市場のローカル時刻（タイムゾーン付き ISO） */
+  t: string
+  /** 横軸用の短いラベル（09:05 / 9/18） */
+  label: string
+  /** ツールチップ用（2026/09/18 09:05） */
+  fullLabel: string
+  o: number
+  h: number
+  l: number
+  c: number
+  v?: number | null
+}
+
+export interface RangeOption {
+  range: ChartRange
+  label: string
+  intervals: ChartInterval[]
+  default: ChartInterval
+}
+
+export interface CandlesResponse {
+  ticker: string
+  code: string
+  name: string
+  market: Market
+  currency: Currency
+  exchange?: string | null
+
+  range: ChartRange
+  /** 実際に使われた時間足（選べない組み合わせは自動で切り替わる） */
+  interval: ChartInterval
+  requestedInterval?: ChartInterval | null
+  notice?: string | null
+  timezone?: string | null
+  /** 推奨の再取得間隔（秒）。データ取得側が決める */
+  refreshSeconds: number
+  /** 本数が多いとき、何本ずつまとめたか */
+  aggregatedBy: number
+
+  rangeOptions: RangeOption[]
+  intervalLabels: Record<string, string>
+  candles: Candle[]
 }

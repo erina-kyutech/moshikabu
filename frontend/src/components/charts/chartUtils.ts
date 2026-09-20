@@ -67,3 +67,28 @@ export function paddedDomain(values: number[]): [number, number] {
   const pad = (max - min) * 0.12 || Math.abs(max) * 0.05 || 1
   return [Math.max(0, min - pad), max + pad]
 }
+
+/**
+ * ローソク1本の描画位置。
+ *
+ * Recharts の Bar には [安値, 高値] を渡しているので、そのピクセル範囲（y 〜 y+height）から
+ * 価格→ピクセルの対応を割り出して、実体（始値〜終値）の位置を求める。
+ */
+export function candleGeometry(
+  y: number,
+  height: number,
+  bar: { o: number; h: number; l: number; c: number },
+): { yOpen: number; yClose: number; bodyTop: number; bodyHeight: number; up: boolean } {
+  const span = bar.h - bar.l
+  const priceToY = (price: number) => (span > 0 ? y + ((bar.h - price) * height) / span : y + height / 2)
+  const yOpen = priceToY(bar.o)
+  const yClose = priceToY(bar.c)
+  return {
+    yOpen,
+    yClose,
+    bodyTop: Math.min(yOpen, yClose),
+    // 始値と終値が同じでも線として見えるように最低1pxは確保する
+    bodyHeight: Math.max(1, Math.abs(yClose - yOpen)),
+    up: bar.c >= bar.o,
+  }
+}

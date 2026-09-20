@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom'
 import { MODES, ModeCard } from '../components/ModeCard'
-import { ChartIcon, ClockIcon, CompareIcon, StackIcon } from '../components/Icons'
+import { CandleIcon, ChartIcon, ClockIcon, CompareIcon, StackIcon } from '../components/Icons'
 
 const ICONS = {
   clock: <ClockIcon className="h-7 w-7" />,
   chart: <ChartIcon className="h-7 w-7" />,
   compare: <CompareIcon className="h-7 w-7" />,
   stack: <StackIcon className="h-7 w-7" />,
+  candle: <CandleIcon className="h-7 w-7" />,
 }
 
 export default function Home() {
@@ -27,7 +28,7 @@ export default function Home() {
           </p>
         </div>
 
-        {/* 4つの機能。PCは2×2、スマホは縦1列 */}
+        {/* 5つの機能。PCは2列（デイトレだけ横長）、スマホは縦1列 */}
         <div className="mx-auto max-w-5xl px-4 pb-14 sm:px-6 sm:pb-20">
           <div className="grid gap-5 sm:gap-6 md:grid-cols-2">
             {MODES.map((mode) => (
@@ -39,6 +40,7 @@ export default function Home() {
                 title={mode.title}
                 description={mode.description}
                 cta={mode.cta}
+                className={mode.to === '/daytrade' ? 'md:col-span-2' : undefined}
               />
             ))}
           </div>

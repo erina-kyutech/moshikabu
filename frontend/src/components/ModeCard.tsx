@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRightIcon } from './Icons'
 
-export type ModeTone = 'brand' | 'gain' | 'compare' | 'recurring'
+export type ModeTone = 'brand' | 'gain' | 'compare' | 'recurring' | 'ink'
 
 const TONES: Record<ModeTone, { icon: string; button: string; ring: string }> = {
   brand: {
@@ -25,6 +25,11 @@ const TONES: Record<ModeTone, { icon: string; button: string; ring: string }> = 
     button: 'bg-recurring hover:bg-[#c2410c] shadow-[0_2px_10px_rgba(234,88,12,0.22)]',
     ring: 'hover:border-[color:var(--color-recurring)]/30',
   },
+  ink: {
+    icon: 'bg-canvas-2 text-ink',
+    button: 'bg-ink hover:bg-[#1e293b] shadow-[0_2px_10px_rgba(15,23,42,0.22)]',
+    ring: 'hover:border-ink/25',
+  },
 }
 
 /** ホームと「シミュレーション」一覧で共通して使う、機能選択の大きなカード。 */
@@ -36,6 +41,7 @@ export function ModeCard({
   description,
   cta,
   compact,
+  className,
 }: {
   to: string
   tone: ModeTone
@@ -44,6 +50,7 @@ export function ModeCard({
   description: ReactNode
   cta: string
   compact?: boolean
+  className?: string
 }) {
   const styles = TONES[tone]
   return (
@@ -51,7 +58,7 @@ export function ModeCard({
       to={to}
       className={`group flex flex-col rounded-2xl border border-line bg-white text-center shadow-card transition hover:-translate-y-0.5 hover:shadow-card-hover focus-ring ${
         compact ? 'p-6' : 'p-7 sm:p-8'
-      } ${styles.ring}`}
+      } ${styles.ring} ${className ?? ''}`}
     >
       <span
         className={`mx-auto flex items-center justify-center rounded-2xl ${
@@ -87,7 +94,7 @@ export interface ModeDef {
   title: ReactNode
   description: ReactNode
   cta: string
-  iconKey: 'clock' | 'chart' | 'compare' | 'stack'
+  iconKey: 'clock' | 'chart' | 'compare' | 'stack' | 'candle'
 }
 
 export const MODES: ModeDef[] = [
@@ -146,5 +153,13 @@ export const MODES: ModeDef[] = [
     ),
     description: '過去の株価から積立投資をシミュレーション',
     cta: '積立を試す',
+  },
+  {
+    to: '/daytrade',
+    tone: 'ink',
+    iconKey: 'candle',
+    title: <>デイトレ練習</>,
+    description: '実際の値動きを見ながら、お金を使わず売買練習',
+    cta: '練習を始める',
   },
 ]
