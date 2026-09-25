@@ -94,6 +94,11 @@ def lookup(code_or_ticker: str) -> JpIssue | None:
     return _load().by_code.get(s)
 
 
+def all_issues() -> list[JpIssue]:
+    """辞書に載っている全銘柄（ユニバース作成に使う）。"""
+    return list(_load().by_code.values())
+
+
 def search(query: str, limit: int = 10) -> list[tuple[int, JpIssue]]:
     """社名・コードで日本株を探す。(スコア, 銘柄) を良い順に返す。"""
     key = search_key(query)

@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .providers.base import MarketDataError, SymbolNotFoundError
-from .routers import fx, search, simulate, stock, strategies
+from .routers import fx, screener, search, simulate, stock, strategies
 
 app = FastAPI(
     title="MoshiKabu API",
@@ -31,6 +31,7 @@ app.add_middleware(
 
 app.include_router(stock.router)
 app.include_router(search.router)
+app.include_router(screener.router)
 app.include_router(simulate.router)
 app.include_router(strategies.router)
 app.include_router(fx.router)

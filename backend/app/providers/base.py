@@ -53,6 +53,24 @@ class PricePoint:
 
 
 @dataclass(frozen=True)
+class Fundamentals:
+    """ある時点の財務・株価指標のスナップショット。
+
+    values に入るのは「実際に計算できた指標」だけ。
+    取得できなかった指標はキーごと存在しない（0 や仮の値を入れない）。
+    """
+
+    ticker: str
+    as_of: date
+    values: dict[str, float] = field(default_factory=dict)
+    currency: str = "JPY"
+    fiscal_period_end: date | None = None   # 使った決算期の期末
+    published_on: date | None = None        # その決算の公表日
+    publication_source: str = "unknown"     # reported（実際の公表日） / estimated（期末＋想定日数）
+    note: str = ""
+
+
+@dataclass(frozen=True)
 class Candle:
     """ローソク足1本。時刻は市場のローカルタイムゾーン。"""
 
@@ -100,6 +118,26 @@ class CorporateActions:
     ticker: str
     splits: list[Split] = field(default_factory=list)
     dividends: list[Dividend] = field(default_factory=list)
+
+
+class FundamentalProvider(ABC):
+    """いま時点の財務指標。スクリーニング（現在の銘柄探し）に使う。"""
+
+    @abstractmethod
+    def get_current(self, ticker: str, fx_to_jpy: float = 1.0) -> Fundamentals:
+        ...
+
+
+class HistoricalFundamentalProvider(ABC):
+    """過去のある時点で「公表済みだった」財務指標。バックテストに使う。
+
+    未来の情報を使わないこと（look-ahead bias の排除）がこのクラスの責務。
+    再現できない場合は None を返し、呼び出し側でその銘柄を検証対象外にする。
+    """
+
+    @abstractmethod
+    def get_as_of(self, ticker: str, on: date, fx_to_jpy: float = 1.0) -> Fundamentals | None:
+        ...
 
 
 class MarketDataProvider(ABC):
