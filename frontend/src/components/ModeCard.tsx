@@ -94,7 +94,7 @@ export interface ModeDef {
   title: ReactNode
   description: ReactNode
   cta: string
-  iconKey: 'clock' | 'chart' | 'compare' | 'stack' | 'candle'
+  iconKey: 'clock' | 'chart' | 'compare' | 'stack' | 'candle' | 'search'
 }
 
 export const MODES: ModeDef[] = [
@@ -153,6 +153,20 @@ export const MODES: ModeDef[] = [
     ),
     description: '過去の株価から積立投資をシミュレーション',
     cta: '積立を試す',
+  },
+  {
+    to: '/screener',
+    tone: 'compare',
+    iconKey: 'search',
+    title: (
+      <>
+        条件から
+        <br />
+        銘柄を探す
+      </>
+    ),
+    description: '自分の条件で銘柄を探し、そのルールを過去で検証',
+    cta: '条件を作る',
   },
   {
     to: '/daytrade',

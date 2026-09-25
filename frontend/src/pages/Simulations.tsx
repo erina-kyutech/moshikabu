@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { PageContainer, PageHeader } from '../components/PageHeader'
 import { MODES, ModeCard } from '../components/ModeCard'
 import { Card } from '../components/ui/Card'
-import { CandleIcon, ChartIcon, ClockIcon, CompareIcon, StackIcon } from '../components/Icons'
+import { CandleIcon, ChartIcon, ClockIcon, CompareIcon, SearchIcon, StackIcon } from '../components/Icons'
 
 const ICONS = {
   clock: <ClockIcon className="h-6 w-6" />,
@@ -10,6 +10,7 @@ const ICONS = {
   compare: <CompareIcon className="h-6 w-6" />,
   stack: <StackIcon className="h-6 w-6" />,
   candle: <CandleIcon className="h-6 w-6" />,
+  search: <SearchIcon className="h-6 w-6" />,
 }
 
 /** スマートフォンの下部ナビから、すべてのシミュレーション機能へ入るための一覧。 */

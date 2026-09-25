@@ -111,3 +111,37 @@ export function formatVolume(value: number | null | undefined): string {
   if (abs >= 10_000) return `${(value / 10_000).toFixed(1)}万`
   return Math.round(value).toLocaleString('ja-JP')
 }
+
+/** 増減を表す指標（成長率・騰落率）だけ、プラスの符号を付けると読みやすい。 */
+const SIGNED_CATEGORIES = new Set(['growth', 'technical'])
+
+/** 指標の値を単位つきで表示する（PBR 0.82倍 / ROE 14.2% / 時価総額 320億円）。 */
+export function formatMetric(
+  value: number | null | undefined,
+  metric: { unit: string; decimals: number; category?: string; id?: string } | undefined,
+): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  const decimals = metric?.decimals ?? 2
+  const unit = metric?.unit ?? ''
+  const body = Math.abs(value).toLocaleString('ja-JP', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
+  const wantsSign =
+    unit === '%' &&
+    (SIGNED_CATEGORIES.has(metric?.category ?? '') || (metric?.id ?? '').startsWith('return'))
+  const sign = value < 0 ? '-' : wantsSign && value > 0 ? '+' : ''
+  return `${sign}${body}${unit}`
+}
+
+/** 条件の説明文（PBR 1.0倍 以下）。 */
+export function formatCondition(
+  metric: { label: string; unit: string } | undefined,
+  operator: string,
+  value: number,
+  operatorLabels: Record<string, string> = {},
+): string {
+  const op = operatorLabels[operator] ?? operator
+  if (!metric) return `${operator} ${value}`
+  return `${metric.label} ${value.toLocaleString('ja-JP')}${metric.unit} ${op}`
+}

@@ -4,6 +4,14 @@
  * ここではエンドポイントの形だけを知っていればよい。
  */
 import type {
+  BacktestRequest,
+  BacktestResponse,
+  FundamentalsResponse,
+  ScreenerCatalog,
+  ScreenerCondition,
+  ScreenResponse,
+} from './screener'
+import type {
   Actions,
   BaseCurrency,
   CandlesResponse,
@@ -78,8 +86,55 @@ async function request<T>(
   return (await res.json()) as T
 }
 
+async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    })
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw e
+    throw new ApiError(NETWORK_MESSAGE, 'NETWORK_ERROR')
+  }
+  if (!res.ok) {
+    let code = 'UNKNOWN'
+    let message = NETWORK_MESSAGE
+    try {
+      const detail = (await res.json())?.detail
+      if (typeof detail === 'string') message = detail
+      else if (detail && typeof detail === 'object') {
+        code = detail.code ?? code
+        message = detail.message ?? message
+      }
+    } catch {
+      /* JSON でないレスポンスは既定メッセージのまま */
+    }
+    throw new ApiError(message, code, res.status)
+  }
+  return (await res.json()) as T
+}
+
 export const api = {
   health: () => request<{ status: string; provider: string }>('/api/health'),
+
+  // ---------------------------------------------------------- 条件スクリーナー
+  /** 指標・演算子・テンプレートなどの一覧 */
+  screenerCatalog: () => request<ScreenerCatalog>('/api/screener/catalog'),
+
+  /** いまの財務データで、条件に一致する銘柄を探す */
+  screenerSearch: (body: { conditions: ScreenerCondition[]; universe: string }, signal?: AbortSignal) =>
+    post<ScreenResponse>('/api/screener/search', body, signal),
+
+  /** 1銘柄の財務指標 */
+  fundamentals: (ticker: string) =>
+    request<FundamentalsResponse>(`/api/stock/${encodeURIComponent(ticker)}/fundamentals`),
+
+  /** 作った条件を過去のデータで検証する */
+  runBacktest: (body: BacktestRequest, signal?: AbortSignal) =>
+    post<BacktestResponse>('/api/backtest/run', body, signal),
 
   /** 社名・証券コード・ティッカーで銘柄候補を探す（150A / 日本製鉄 / Apple） */
   search: (q: string, limit = 8, signal?: AbortSignal) =>

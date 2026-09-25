@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { MODES, ModeCard } from '../components/ModeCard'
-import { CandleIcon, ChartIcon, ClockIcon, CompareIcon, StackIcon } from '../components/Icons'
+import { CandleIcon, ChartIcon, ClockIcon, CompareIcon, SearchIcon, StackIcon } from '../components/Icons'
 
 const ICONS = {
   clock: <ClockIcon className="h-7 w-7" />,
@@ -8,6 +8,7 @@ const ICONS = {
   compare: <CompareIcon className="h-7 w-7" />,
   stack: <StackIcon className="h-7 w-7" />,
   candle: <CandleIcon className="h-7 w-7" />,
+  search: <SearchIcon className="h-7 w-7" />,
 }
 
 export default function Home() {

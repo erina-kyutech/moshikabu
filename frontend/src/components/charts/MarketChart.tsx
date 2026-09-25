@@ -65,6 +65,7 @@ export function MarketChart({
   height = 320,
   volumeHeight = 78,
   showVolume = true,
+  clampMarkers = false,
 }: {
   candles: Candle[]
   currency: Currency
@@ -74,6 +75,9 @@ export function MarketChart({
   height?: number
   volumeHeight?: number
   showVolume?: boolean
+  /** 表示期間の外にある売買地点を、端のローソクに寄せて必ず描く
+      （表示期間＝その売買の期間、と決まっている画面で使う） */
+  clampMarkers?: boolean
 }) {
   const rows: Row[] = useMemo(
     () =>
@@ -104,7 +108,11 @@ export function MarketChart({
     const first = times[0]
     return markers.flatMap((m) => {
       const at = new Date(m.time).getTime()
-      if (!Number.isFinite(at) || at < first) return []
+      if (!Number.isFinite(at)) return []
+      if (at < first) {
+        // 休場日に買った場合など、先頭のローソクより前になることがある
+        return clampMarkers ? [{ ...m, k: rows[0].k }] : []
+      }
       let index = 0
       for (let i = 0; i < times.length; i++) {
         if (times[i] <= at) index = i
@@ -112,7 +120,7 @@ export function MarketChart({
       }
       return [{ ...m, k: rows[index].k }]
     })
-  }, [rows, markers])
+  }, [rows, markers, clampMarkers])
   const domain = useMemo(
     () =>
       paddedDomain(

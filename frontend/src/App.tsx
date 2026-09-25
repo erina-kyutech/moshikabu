@@ -17,6 +17,11 @@ const Compare = lazy(() => import('./pages/Compare'))
 const Recurring = lazy(() => import('./pages/Recurring'))
 const StrategyCompare = lazy(() => import('./pages/StrategyCompare'))
 const DayTrade = lazy(() => import('./pages/DayTrade'))
+const Screener = lazy(() => import('./pages/Screener'))
+const ScreenerResults = lazy(() => import('./pages/ScreenerResults'))
+const ScreenerStock = lazy(() => import('./pages/ScreenerStock'))
+const BacktestSetup = lazy(() => import('./pages/BacktestSetup'))
+const BacktestResult = lazy(() => import('./pages/BacktestResult'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 export default function App() {
@@ -36,6 +41,11 @@ export default function App() {
             <Route path="/recurring" element={<Recurring />} />
             <Route path="/compare-strategy" element={<StrategyCompare />} />
             <Route path="/daytrade" element={<DayTrade />} />
+            <Route path="/screener" element={<Screener />} />
+            <Route path="/screener/results" element={<ScreenerResults />} />
+            <Route path="/screener/stock/:ticker" element={<ScreenerStock />} />
+            <Route path="/backtest" element={<BacktestSetup />} />
+            <Route path="/backtest/result" element={<BacktestResult />} />
             <Route path="/invest" element={<Invest />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/portfolio/:id" element={<HoldingDetail />} />
