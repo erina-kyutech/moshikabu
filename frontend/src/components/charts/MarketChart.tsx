@@ -33,6 +33,8 @@ export interface PriceLine {
   label: string
   color: string
   dashed?: boolean
+  /** ラベルを置く側。同じ価格に複数の線が重なっても読めるように左右へ分ける */
+  align?: 'left' | 'right'
 }
 
 interface Row {
@@ -172,7 +174,7 @@ export function MarketChart({
                 strokeDasharray={line.dashed === false ? undefined : '4 4'}
                 label={{
                   value: `${line.label} ${formatPrice(line.price, currency)}`,
-                  position: 'insideTopRight',
+                  position: line.align === 'left' ? 'insideBottomLeft' : 'insideTopRight',
                   fill: line.color,
                   fontSize: 10,
                   fontWeight: 600,

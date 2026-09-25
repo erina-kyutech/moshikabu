@@ -66,14 +66,21 @@ export default function DayTrade() {
         time: o.at,
         price: o.price,
         side: o.side,
-        label: `${o.side === 'buy' ? '▲ BUY' : '▼ SELL'} ${formatPrice(o.price, o.currency)}`,
+        label: `${o.side === 'buy' ? '▲BUY' : '▼SELL'} ${formatPrice(o.price, o.currency)}`,
       }))
   }, [session, selected, showMarkers])
 
   const priceLines: PriceLine[] = useMemo(() => {
     const lines: PriceLine[] = []
     if (current) lines.push({ price: current.price, label: '現在', color: CHART_COLORS.axis })
-    if (position) lines.push({ price: position.avgPrice, label: '平均取得', color: CHART_COLORS.line })
+    // 買った直後は現在値と平均取得が同じ価格になるので、ラベルは左右に分ける
+    if (position)
+      lines.push({
+        price: position.avgPrice,
+        label: '平均取得',
+        color: CHART_COLORS.line,
+        align: 'left',
+      })
     return lines
   }, [current, position])
 
