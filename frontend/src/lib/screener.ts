@@ -68,6 +68,15 @@ export interface ScreenRow {
   checks: ConditionCheck[]
 }
 
+/** 条件1つだけで見たときの通過数（0件だった理由を示すのに使う） */
+export interface ConditionStat {
+  metric: string
+  operator: string
+  threshold: number
+  evaluated: number
+  passed: number
+}
+
 export interface ScreenResponse {
   asOf: string
   universe: string
@@ -77,6 +86,7 @@ export interface ScreenResponse {
   rejectedCount: number
   excludedCount: number
   excludedReasons: Record<string, number>
+  conditionStats: ConditionStat[]
   rows: ScreenRow[]
   notes: string[]
 }

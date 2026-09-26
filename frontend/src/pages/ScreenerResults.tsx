@@ -8,9 +8,15 @@ import { EmptyState } from '../components/ui/States'
 import { Change } from '../components/Change'
 import { StockAvatar } from '../components/StockAvatar'
 import { CheckIcon, InfoIcon, SearchIcon } from '../components/Icons'
-import { api } from '../lib/api'
-import type { MetricDef, ScreenResponse, ScreenRow } from '../lib/screener'
-import { resultStore } from '../lib/storage/rules'
+import { api, ApiError } from '../lib/api'
+import type {
+  ConditionStat,
+  MetricDef,
+  ScreenerCondition,
+  ScreenResponse,
+  ScreenRow,
+} from '../lib/screener'
+import { draftStore, resultStore } from '../lib/storage/rules'
 import { formatMetric, formatPercent, formatPrice, formatSignedMoney } from '../lib/format'
 import { cn } from '../components/ui/cn'
 
@@ -35,10 +41,25 @@ export default function ScreenerResults() {
       .catch(() => undefined)
   }, [])
 
-  const conditionMetrics = useMemo(
-    () => (result?.rows[0]?.checks ?? []).map((c) => c.metric),
-    [result],
-  )
+  /** 検索に使った条件。0件のときは rows が空なので conditionStats から取る */
+  const usedConditions = useMemo<ScreenerCondition[]>(() => {
+    if (!result) return []
+    const stats = result.conditionStats ?? []
+    if (stats.length > 0) {
+      return stats.map((st) => ({
+        metric: st.metric,
+        operator: st.operator as ScreenerCondition['operator'],
+        value: st.threshold,
+      }))
+    }
+    return (result.rows[0]?.checks ?? []).map((c) => ({
+      metric: c.metric,
+      operator: c.operator as ScreenerCondition['operator'],
+      value: c.threshold,
+    }))
+  }, [result])
+
+  const conditionMetrics = useMemo(() => usedConditions.map((c) => c.metric), [usedConditions])
   const columns = useMemo(() => {
     const seen = new Set<string>()
     return [...conditionMetrics, ...BASE_COLUMNS].filter((m) => !seen.has(m) && seen.add(m))
@@ -91,14 +112,14 @@ export default function ScreenerResults() {
       <Card padding="md" className="mb-5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-ink-soft">設定した条件</span>
-          {(result.rows[0]?.checks ?? []).map((c) => {
+          {usedConditions.map((c) => {
             const m = metrics.get(c.metric)
             return (
               <span
                 key={c.metric}
                 className="inline-flex items-center gap-1 rounded-lg border border-line bg-canvas-2 px-2.5 py-1 text-xs text-ink"
               >
-                {m?.label ?? c.metric} {c.threshold}
+                {m?.label ?? c.metric} {c.value}
                 {m?.unit} {c.operator === '<=' ? '以下' : c.operator === '>=' ? '以上' : c.operator}
               </span>
             )
@@ -119,14 +140,11 @@ export default function ScreenerResults() {
       </Card>
 
       {result.rows.length === 0 ? (
-        <EmptyState
-          title="条件に一致する銘柄はありませんでした"
-          description="条件をゆるめるか、対象にする銘柄を広げてお試しください。"
-          action={
-            <ButtonLink to="/screener" variant="primary">
-              条件を編集する
-            </ButtonLink>
-          }
+        <NoMatches
+          result={result}
+          metrics={metrics}
+          conditions={usedConditions}
+          onResult={setResult}
         />
       ) : (
         <>
@@ -293,6 +311,122 @@ export default function ScreenerResults() {
         </div>
       </Card>
     </ScreenerLayout>
+  )
+}
+
+/**
+ * 0件だったときに「なぜ0件なのか」を示す。
+ * 条件を1つずつ外して数えた通過数を出し、どれが効いているのかを分かるようにする。
+ */
+function NoMatches({
+  result,
+  metrics,
+  conditions,
+  onResult,
+}: {
+  result: ScreenResponse
+  metrics: Map<string, MetricDef>
+  conditions: ScreenerCondition[]
+  onResult: (next: ScreenResponse) => void
+}) {
+  const [widening, setWidening] = useState('')
+  const [error, setError] = useState('')
+  const stats = result.conditionStats ?? []
+  const tightest = stats.length > 0 ? [...stats].sort((a, b) => a.passed - b.passed)[0] : null
+
+  /** 同じ条件のまま、対象にする銘柄だけを広げてその場で検索し直す */
+  const widen = async (universe: string) => {
+    setError('')
+    setWidening(universe)
+    try {
+      const next = await api.screenerSearch({ conditions, universe })
+      resultStore.save(next)
+      draftStore.save({ conditions, universe })
+      onResult(next)
+      window.scrollTo({ top: 0 })
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : '検索できませんでした。')
+    } finally {
+      setWidening('')
+    }
+  }
+
+  return (
+    <Card padding="lg">
+      <div className="mx-auto max-w-xl text-center">
+        <h2 className="text-lg font-bold text-ink">条件に一致する銘柄はありませんでした</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          {result.universeLabel}の{result.scanned}銘柄を調べました。
+          {tightest
+            ? `「${metrics.get(tightest.metric)?.label ?? tightest.metric}」の条件が最も厳しく、${tightest.passed}銘柄しか満たしていません。`
+            : '条件をゆるめるか、対象にする銘柄を広げてお試しください。'}
+        </p>
+      </div>
+
+      {stats.length > 0 ? (
+        <div className="mx-auto mt-6 max-w-xl">
+          <p className="mb-2 text-xs font-medium text-ink-soft">
+            条件を1つずつだけで見たときに、満たしていた銘柄数
+          </p>
+          <ul className="space-y-2">
+            {stats.map((st) => (
+              <StatBar key={st.metric} stat={st} metric={metrics.get(st.metric)} />
+            ))}
+          </ul>
+          <p className="mt-3 text-xs leading-relaxed text-faint">
+            ※ すべてを同時に満たす銘柄が無かった、ということです。
+            数字の少ない条件をゆるめると見つかりやすくなります。
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mx-auto mt-6 flex max-w-xl flex-wrap justify-center gap-2">
+        <ButtonLink to="/screener" variant="primary">
+          条件を編集する
+        </ButtonLink>
+        {result.universe !== 'jp-large' ? (
+          <Button variant="secondary" disabled={!!widening} onClick={() => widen('jp-large')}>
+            {widening === 'jp-large' ? '検索中…' : '対象を日本株99銘柄に広げて再検索'}
+          </Button>
+        ) : null}
+        {result.universe !== 'jp-mid' ? (
+          <Button variant="secondary" disabled={!!widening} onClick={() => widen('jp-mid')}>
+            {widening === 'jp-mid' ? '検索中…（1分ほどかかります）' : '中型株492銘柄まで広げて再検索'}
+          </Button>
+        ) : null}
+      </div>
+
+      {error ? (
+        <p className="mx-auto mt-4 max-w-xl rounded-xl border border-loss/20 bg-loss-soft px-4 py-3 text-center text-sm text-loss">
+          {error}
+        </p>
+      ) : null}
+    </Card>
+  )
+}
+
+function StatBar({ stat, metric }: { stat: ConditionStat; metric?: MetricDef }) {
+  const ratio = stat.evaluated > 0 ? stat.passed / stat.evaluated : 0
+  const opLabel =
+    stat.operator === '<=' ? '以下' : stat.operator === '>=' ? '以上' : stat.operator
+  return (
+    <li>
+      <div className="flex items-baseline justify-between gap-3 text-sm">
+        <span className="min-w-0 truncate text-ink">
+          {metric?.label ?? stat.metric} {stat.threshold}
+          {metric?.unit} {opLabel}
+        </span>
+        <span className="num shrink-0 text-ink-soft">
+          {stat.passed} / {stat.evaluated}銘柄
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-line-soft">
+        <div
+          className={cn('h-full rounded-full', stat.passed === 0 ? 'bg-loss' : 'bg-brand')}
+          style={{ width: `${Math.max(ratio * 100, stat.passed > 0 ? 3 : 0)}%` }}
+        />
+      </div>
+    </li>
   )
 }
 

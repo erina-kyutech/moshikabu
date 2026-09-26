@@ -50,12 +50,27 @@ class ScreenRow:
 
 
 @dataclass(frozen=True)
+class ConditionStat:
+    """条件1つだけで見たときの通過数。0件だったときにどれが効いたのかを示す。"""
+
+    metric: str
+    operator: str
+    threshold: float
+    evaluated: int
+    """その指標を取得できた銘柄数"""
+    passed: int
+    """そのうち、この条件を満たした銘柄数"""
+
+
+@dataclass(frozen=True)
 class ScreenResult:
     matched: list[ScreenRow] = field(default_factory=list)
     rejected: list[ScreenRow] = field(default_factory=list)
     """条件を満たさなかった銘柄（結果一覧には出さないが件数として扱う）"""
     excluded: dict[str, str] = field(default_factory=dict)
     """データ不足などで判定できなかった銘柄 → 理由"""
+    stats: list[ConditionStat] = field(default_factory=list)
+    """条件ごとの通過数（AND を外して1条件ずつ数えたもの）"""
 
 
 class ScreeningError(Exception):
@@ -113,6 +128,8 @@ def screen(
     validate(conditions)
     result = ScreenResult()
     needed = {c.metric for c in conditions}
+    evaluated = [0] * len(conditions)
+    passed = [0] * len(conditions)
 
     for ticker, snapshot in snapshots.items():
         if snapshot is None:
@@ -127,5 +144,26 @@ def screen(
 
         row = check(conditions, snapshot)
         (result.matched if row.matched else result.rejected).append(row)
+
+    # AND を外し、条件1つずつの通過数を数える（データがある銘柄だけを母数にする）
+    for i, c in enumerate(conditions):
+        for snapshot in snapshots.values():
+            if snapshot is None:
+                continue
+            actual = snapshot.values.get(c.metric)
+            if actual is None:
+                continue
+            evaluated[i] += 1
+            if metrics.compare(actual, c.operator, c.value):
+                passed[i] += 1
+        result.stats.append(
+            ConditionStat(
+                metric=c.metric,
+                operator=c.operator,
+                threshold=c.value,
+                evaluated=evaluated[i],
+                passed=passed[i],
+            )
+        )
 
     return result

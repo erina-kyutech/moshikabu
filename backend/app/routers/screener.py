@@ -20,6 +20,7 @@ from ..schemas_screener import (
     CatalogOut,
     CheckOut,
     ConditionIn,
+    ConditionStatOut,
     EquityPointOut,
     FundamentalsOut,
     MetricOut,
@@ -203,6 +204,7 @@ def search(request: ScreenRequest) -> ScreenResponse:
         rejectedCount=len(result.rejected),
         excludedCount=len(result.excluded),
         excludedReasons=excluded_reasons,
+        conditionStats=[ConditionStatOut(**st.__dict__) for st in result.stats],
         rows=rows,
         notes=[
             "条件に一致した銘柄の一覧です。将来の値上がりを示すものではありません。",

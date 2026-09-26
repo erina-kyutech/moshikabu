@@ -263,3 +263,44 @@ def test_invalid_config():
         bt.run(simple_config(start=D2026, end=D2024), data)
     with pytest.raises(ScreeningError):
         bt.run(simple_config(initial_capital=0), data)
+
+
+def test_condition_stats_show_which_condition_filtered_everything():
+    """AND で0件のとき、条件ごとの通過数からボトルネックが分かる。"""
+    conditions = [
+        Condition("pbr", "<=", 1.0),
+        Condition("roe", ">=", 10.0),
+    ]
+    result = screen(
+        conditions,
+        {
+            "A.T": snap("A.T", pbr=0.8, roe=5.0),    # PBR だけ通る
+            "B.T": snap("B.T", pbr=2.0, roe=15.0),   # ROE だけ通る
+            "C.T": snap("C.T", pbr=3.0, roe=12.0),   # ROE だけ通る
+        },
+    )
+
+    assert result.matched == []
+    assert len(result.rejected) == 3
+
+    pbr, roe = result.stats
+    assert (pbr.metric, pbr.passed, pbr.evaluated) == ("pbr", 1, 3)
+    assert (roe.metric, roe.passed, roe.evaluated) == ("roe", 2, 3)
+
+
+def test_condition_stats_ignore_stocks_without_the_metric():
+    """指標が取れない銘柄は母数に入れない（0件と混同しない）。"""
+    conditions = [Condition("pbr", "<=", 1.0)]
+    result = screen(
+        conditions,
+        {
+            "A.T": snap("A.T", pbr=0.8),
+            "B.T": snap("B.T"),        # PBR なし → 判定対象外
+            "C.T": None,               # 取得失敗 → 判定対象外
+        },
+    )
+
+    assert len(result.matched) == 1
+    assert len(result.excluded) == 2
+    (stat,) = result.stats
+    assert (stat.passed, stat.evaluated) == (1, 1)

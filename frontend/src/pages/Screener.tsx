@@ -12,10 +12,10 @@ import type { ScreenerCatalog, ScreenerCondition, SavedRule } from '../lib/scree
 import { draftStore, resultStore, ruleRepository } from '../lib/storage/rules'
 import { formatCondition } from '../lib/format'
 
+/** 初期表示の条件。既定の母集団（31銘柄）でも結果が出る、ゆるめの組み合わせにしている */
 const DEFAULT_CONDITIONS: ScreenerCondition[] = [
-  { metric: 'pbr', operator: '<=', value: 1.0 },
-  { metric: 'revenueGrowth', operator: '>=', value: 20 },
-  { metric: 'roe', operator: '>=', value: 10 },
+  { metric: 'pbr', operator: '<=', value: 1.5 },
+  { metric: 'roe', operator: '>=', value: 8 },
 ]
 
 export default function Screener() {
@@ -133,13 +133,12 @@ export default function Screener() {
               return (
                 <li
                   key={index}
-                  className="grid grid-cols-[1fr_auto] items-start gap-2 rounded-xl border border-line bg-canvas-2 p-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
+                  className="flex flex-col gap-2 rounded-xl border border-line bg-canvas-2 p-3 sm:grid sm:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
                 >
                   <Select
                     aria-label={`条件${index + 1}の指標`}
                     value={condition.metric}
                     onChange={(e) => setCondition(index, { metric: e.target.value })}
-                    className="h-11"
                   >
                     {Object.entries(catalog.categories).map(([key, label]) => (
                       <optgroup key={key} label={label}>
@@ -154,22 +153,27 @@ export default function Screener() {
                     ))}
                   </Select>
 
-                  <Select
-                    aria-label={`条件${index + 1}の比較`}
-                    value={condition.operator}
-                    onChange={(e) =>
-                      setCondition(index, { operator: e.target.value as ScreenerCondition['operator'] })
-                    }
-                    className="h-11"
-                  >
-                    {Object.entries(catalog.operators).map(([op, label]) => (
-                      <option key={op} value={op}>
-                        {label}
-                      </option>
-                    ))}
-                  </Select>
+                  {/* スマホ: 2行目にまとめる ／ PC: グリッドの2〜4列目に戻す */}
+                  <div className="flex items-center gap-2 sm:contents">
+                  <div className="w-[6.25rem] shrink-0 sm:w-auto">
+                    <Select
+                      aria-label={`条件${index + 1}の比較`}
+                      value={condition.operator}
+                      onChange={(e) =>
+                        setCondition(index, {
+                          operator: e.target.value as ScreenerCondition['operator'],
+                        })
+                      }
+                    >
+                      {Object.entries(catalog.operators).map(([op, label]) => (
+                        <option key={op} value={op}>
+                          {label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
                     <Input
                       aria-label={`条件${index + 1}の数値`}
                       type="number"
@@ -177,19 +181,19 @@ export default function Screener() {
                       step="any"
                       value={condition.value}
                       onChange={(e) => setCondition(index, { value: Number(e.target.value) })}
-                      className="h-11"
                     />
-                    <span className="w-10 shrink-0 text-sm text-muted">{metric?.unit}</span>
+                    <span className="shrink-0 text-sm text-muted sm:w-10">{metric?.unit}</span>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setConditions((prev) => prev.filter((_, i) => i !== index))}
                     aria-label={`条件${index + 1}を削除`}
-                    className="focus-ring col-start-2 row-start-1 rounded-lg p-2 text-faint transition hover:bg-white hover:text-loss sm:col-start-auto sm:row-start-auto"
+                    className="focus-ring shrink-0 rounded-lg p-2 text-faint transition hover:bg-white hover:text-loss"
                   >
                     <CloseIcon className="h-4 w-4" />
                   </button>
+                  </div>
                 </li>
               )
             })}

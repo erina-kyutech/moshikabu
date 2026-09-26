@@ -75,6 +75,14 @@ class CheckOut(BaseModel):
     passed: bool
 
 
+class ConditionStatOut(BaseModel):
+    metric: str
+    operator: str
+    threshold: float
+    evaluated: int   # その指標を取得できた銘柄数
+    passed: int      # そのうち条件を満たした銘柄数
+
+
 class ScreenRowOut(BaseModel):
     ticker: str
     code: str
@@ -98,6 +106,7 @@ class ScreenResponse(BaseModel):
     rejectedCount: int
     excludedCount: int
     excludedReasons: dict[str, int] = Field(default_factory=dict)
+    conditionStats: list[ConditionStatOut] = Field(default_factory=list)
     rows: list[ScreenRowOut] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 
