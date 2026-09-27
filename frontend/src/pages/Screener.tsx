@@ -27,7 +27,10 @@ export default function Screener() {
   const [rules, setRules] = useState<SavedRule[]>([])
   const [ruleName, setRuleName] = useState('')
   const [saving, setSaving] = useState(false)
+  // 下書きを読み込む前に保存の effect が走ると、初期値で上書きしてしまう
+  const [hydrated, setHydrated] = useState(false)
   const [searching, setSearching] = useState(false)
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -43,12 +46,14 @@ export default function Screener() {
       setUniverse(draft.universe || 'jp-core30')
     }
     setRules(ruleRepository.list())
+    setHydrated(true)
     return ruleRepository.subscribe(() => setRules(ruleRepository.list()))
   }, [])
 
   useEffect(() => {
+    if (!hydrated) return
     draftStore.save({ conditions, universe })
-  }, [conditions, universe])
+  }, [conditions, universe, hydrated])
 
   const metricById = useMemo(
     () => new Map((catalog?.metrics ?? []).map((m) => [m.id, m])),
@@ -72,14 +77,19 @@ export default function Screener() {
       return
     }
     setSearching(true)
+    setProgress(null)
     try {
-      const result = await api.screenerSearch({ conditions, universe })
+      const result = await api.screenerSearchAll(
+        { conditions, universe },
+        { onProgress: (done, total) => setProgress({ done, total }) },
+      )
       resultStore.save(result)
       navigate('/screener/results')
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '検索できませんでした。')
     } finally {
       setSearching(false)
+      setProgress(null)
     }
   }
 
@@ -241,7 +251,11 @@ export default function Screener() {
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <Button size="lg" full onClick={search} disabled={searching}>
               <SearchIcon className="h-4 w-4" />
-              {searching ? '検索中…' : 'この条件で銘柄を探す'}
+              {searching
+                ? progress
+                  ? `検索中… ${progress.done} / ${progress.total}銘柄`
+                  : '検索中…'
+                : 'この条件で銘柄を探す'}
             </Button>
             <Button
               size="lg"

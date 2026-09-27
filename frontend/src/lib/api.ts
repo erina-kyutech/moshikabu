@@ -44,6 +44,46 @@ export class ApiError extends Error {
 const NETWORK_MESSAGE =
   '株価データを取得できませんでした。しばらくしてからもう一度お試しください。'
 
+/** サーバー側で時間切れになったとき（Vercel は60秒で関数を打ち切る） */
+const TIMEOUT_MESSAGE =
+  '時間内に処理が終わりませんでした。対象にする銘柄を減らすか、しばらくしてからお試しください。'
+
+/** 本文が JSON でないエラー応答（504 など）を、内容の分かる文言にする */
+/** 分割呼び出しの回数上限（無限ループ防止） */
+const MAX_SCREEN_CHUNKS = 20
+
+/** 分割した検索結果を1つにまとめる */
+function mergeScreenResponses(a: ScreenResponse, b: ScreenResponse): ScreenResponse {
+  const excludedReasons = { ...a.excludedReasons }
+  for (const [reason, count] of Object.entries(b.excludedReasons ?? {})) {
+    excludedReasons[reason] = (excludedReasons[reason] ?? 0) + count
+  }
+  // 条件ごとの通過数は、条件の並び順が同じなので位置で足し合わせる
+  const conditionStats = (a.conditionStats ?? []).map((st, i) => {
+    const other = b.conditionStats?.[i]
+    return other
+      ? { ...st, evaluated: st.evaluated + other.evaluated, passed: st.passed + other.passed }
+      : st
+  })
+  return {
+    ...a,
+    scanned: a.scanned + b.scanned,
+    matchedCount: a.matchedCount + b.matchedCount,
+    rejectedCount: a.rejectedCount + b.rejectedCount,
+    excludedCount: a.excludedCount + b.excludedCount,
+    excludedReasons,
+    conditionStats,
+    rows: [...a.rows, ...b.rows],
+    nextOffset: b.nextOffset,
+  }
+}
+
+function fallbackMessage(status: number): string {
+  if (status === 504 || status === 408) return TIMEOUT_MESSAGE
+  if (status === 502 || status === 503) return 'サーバーが混み合っています。しばらくしてからお試しください。'
+  return NETWORK_MESSAGE
+}
+
 async function request<T>(
   path: string,
   params?: Record<string, string | number | boolean | undefined>,
@@ -64,7 +104,7 @@ async function request<T>(
 
   if (!res.ok) {
     let code = 'UNKNOWN'
-    let message = NETWORK_MESSAGE
+    let message = fallbackMessage(res.status)
     try {
       const body = await res.json()
       const detail = body?.detail
@@ -101,7 +141,7 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
   }
   if (!res.ok) {
     let code = 'UNKNOWN'
-    let message = NETWORK_MESSAGE
+    let message = fallbackMessage(res.status)
     try {
       const detail = (await res.json())?.detail
       if (typeof detail === 'string') message = detail
@@ -124,9 +164,36 @@ export const api = {
   /** 指標・演算子・テンプレートなどの一覧 */
   screenerCatalog: () => request<ScreenerCatalog>('/api/screener/catalog'),
 
-  /** いまの財務データで、条件に一致する銘柄を探す */
-  screenerSearch: (body: { conditions: ScreenerCondition[]; universe: string }, signal?: AbortSignal) =>
-    post<ScreenResponse>('/api/screener/search', body, signal),
+  /** いまの財務データで、条件に一致する銘柄を探す（1回分） */
+  screenerSearch: (
+    body: { conditions: ScreenerCondition[]; universe: string; offset?: number; limit?: number },
+    signal?: AbortSignal,
+  ) => post<ScreenResponse>('/api/screener/search', body, signal),
+
+  /**
+   * 対象銘柄が多い母集団を、分割して最後まで調べる。
+   * サーバー1回あたりの実行時間に上限があるため、続きがある間だけ呼び直す。
+   */
+  async screenerSearchAll(
+    body: { conditions: ScreenerCondition[]; universe: string },
+    options: { onProgress?: (done: number, total: number) => void; signal?: AbortSignal } = {},
+  ): Promise<ScreenResponse> {
+    let merged: ScreenResponse | null = null
+    let offset = 0
+    let done = 0
+
+    for (let i = 0; i < MAX_SCREEN_CHUNKS; i += 1) {
+      const chunk = await api.screenerSearch({ ...body, offset }, options.signal)
+      done += chunk.scanned
+      merged = merged ? mergeScreenResponses(merged, chunk) : chunk
+      options.onProgress?.(done, chunk.total || chunk.scanned)
+      if (chunk.nextOffset == null) break
+      offset = chunk.nextOffset
+    }
+
+    if (!merged) throw new ApiError(NETWORK_MESSAGE, 'NETWORK_ERROR')
+    return { ...merged, scanned: done, nextOffset: null }
+  },
 
   /** 1銘柄の財務指標 */
   fundamentals: (ticker: string) =>

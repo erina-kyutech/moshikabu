@@ -330,6 +330,7 @@ function NoMatches({
   onResult: (next: ScreenResponse) => void
 }) {
   const [widening, setWidening] = useState('')
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState('')
   const stats = result.conditionStats ?? []
   const tightest = stats.length > 0 ? [...stats].sort((a, b) => a.passed - b.passed)[0] : null
@@ -338,8 +339,12 @@ function NoMatches({
   const widen = async (universe: string) => {
     setError('')
     setWidening(universe)
+    setProgress(null)
     try {
-      const next = await api.screenerSearch({ conditions, universe })
+      const next = await api.screenerSearchAll(
+        { conditions, universe },
+        { onProgress: (done, total) => setProgress({ done, total }) },
+      )
       resultStore.save(next)
       draftStore.save({ conditions, universe })
       onResult(next)
@@ -348,6 +353,7 @@ function NoMatches({
       setError(e instanceof ApiError ? e.message : '検索できませんでした。')
     } finally {
       setWidening('')
+      setProgress(null)
     }
   }
 
@@ -386,12 +392,20 @@ function NoMatches({
         </ButtonLink>
         {result.universe !== 'jp-large' ? (
           <Button variant="secondary" disabled={!!widening} onClick={() => widen('jp-large')}>
-            {widening === 'jp-large' ? '検索中…' : '対象を日本株99銘柄に広げて再検索'}
+            {widening === 'jp-large'
+              ? progress
+                ? `検索中… ${progress.done} / ${progress.total}銘柄`
+                : '検索中…'
+              : '対象を日本株99銘柄に広げて再検索'}
           </Button>
         ) : null}
         {result.universe !== 'jp-mid' ? (
           <Button variant="secondary" disabled={!!widening} onClick={() => widen('jp-mid')}>
-            {widening === 'jp-mid' ? '検索中…（1分ほどかかります）' : '中型株492銘柄まで広げて再検索'}
+            {widening === 'jp-mid'
+              ? progress
+                ? `検索中… ${progress.done} / ${progress.total}銘柄`
+                : '検索中…'
+              : '中型株492銘柄まで広げて再検索（数分かかります）'}
           </Button>
         ) : null}
       </div>

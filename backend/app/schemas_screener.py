@@ -65,6 +65,9 @@ class ConditionIn(BaseModel):
 class ScreenRequest(BaseModel):
     conditions: list[ConditionIn]
     universe: str = "jp-core30"
+    # 実行時間の上限（Vercel は60秒）に収めるため、対象銘柄を分割して呼べるようにする
+    offset: int = Field(default=0, ge=0)
+    limit: int | None = Field(default=None, ge=1, le=500)
 
 
 class CheckOut(BaseModel):
@@ -102,6 +105,11 @@ class ScreenResponse(BaseModel):
     universe: str
     universeLabel: str
     scanned: int
+    """この応答で実際に調べた銘柄数（分割呼び出しでは1回分）"""
+    total: int = 0
+    """対象銘柄の総数"""
+    nextOffset: int | None = None
+    """続きがある場合の次の開始位置。None なら最後まで調べ終えている"""
     matchedCount: int
     rejectedCount: int
     excludedCount: int

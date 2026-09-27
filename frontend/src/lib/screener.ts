@@ -82,6 +82,10 @@ export interface ScreenResponse {
   universe: string
   universeLabel: string
   scanned: number
+  /** 対象銘柄の総数（分割して調べる場合、scanned はその回に調べた数） */
+  total: number
+  /** 続きがある場合の次の開始位置。null なら最後まで調べ終えている */
+  nextOffset: number | null
   matchedCount: number
   rejectedCount: number
   excludedCount: number

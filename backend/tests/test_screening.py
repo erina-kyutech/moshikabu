@@ -304,3 +304,13 @@ def test_condition_stats_ignore_stocks_without_the_metric():
     assert len(result.excluded) == 2
     (stat,) = result.stats
     assert (stat.passed, stat.evaluated) == (1, 1)
+
+
+def test_screen_handles_empty_snapshot_set():
+    """分割呼び出しで範囲外を指定したときに落ちないこと。"""
+    result = screen([Condition("pbr", "<=", 1.0)], {})
+    assert result.matched == []
+    assert result.rejected == []
+    assert result.excluded == {}
+    (stat,) = result.stats
+    assert (stat.passed, stat.evaluated) == (0, 0)

@@ -44,6 +44,10 @@ from ..symbols import describe
 router = APIRouter(prefix="/api", tags=["screener"])
 
 MAX_WORKERS = 24
+# 1リクエストで調べる銘柄数の上限。
+# Vercel の関数は60秒で打ち切られるため、これを超える母集団は
+# フロントから offset をずらして分割で呼ぶ。
+CHUNK_SIZE = 50
 
 # 条件の例。「おすすめ銘柄」ではなく、あくまで検索条件の組み合わせ例
 TEMPLATES = (
@@ -138,7 +142,15 @@ def search(request: ScreenRequest) -> ScreenResponse:
     if spec is None:
         raise _bad("対象銘柄の指定が不正です。")
 
-    tickers = universe_service.tickers(request.universe)
+    all_tickers = universe_service.tickers(request.universe)
+    # 1回のリクエストで調べる数を制限する（サーバーレスの実行時間上限に収めるため）
+    limit = request.limit or CHUNK_SIZE
+    start = min(request.offset, len(all_tickers))
+    tickers = all_tickers[start : start + limit]
+    next_offset = start + len(tickers)
+    if next_offset >= len(all_tickers):
+        next_offset = None
+
     needed = frozenset(c.metric for c in conditions)
     fundamentals = get_fundamental_provider()
     usd_jpy = fx_service.latest_rate("usdjpy") or fx_service.FALLBACK_USDJPY
@@ -150,8 +162,11 @@ def search(request: ScreenRequest) -> ScreenResponse:
         except (SymbolNotFoundError, MarketDataError):
             return ticker, None
 
-    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, max(1, len(tickers)))) as pool:
-        snapshots = dict(pool.map(load, tickers))
+    if tickers:
+        with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(tickers))) as pool:
+            snapshots = dict(pool.map(load, tickers))
+    else:
+        snapshots = {}
 
     result = screen(conditions, snapshots)
 
@@ -200,6 +215,8 @@ def search(request: ScreenRequest) -> ScreenResponse:
         universe=request.universe,
         universeLabel=spec.label,
         scanned=len(tickers),
+        total=len(all_tickers),
+        nextOffset=next_offset,
         matchedCount=len(result.matched),
         rejectedCount=len(result.rejected),
         excludedCount=len(result.excluded),
@@ -208,7 +225,7 @@ def search(request: ScreenRequest) -> ScreenResponse:
         rows=rows,
         notes=[
             "条件に一致した銘柄の一覧です。将来の値上がりを示すものではありません。",
-            f"対象は{spec.label}の{len(tickers)}銘柄です。",
+            f"対象は{spec.label}の{len(all_tickers)}銘柄です。",
         ],
     )
 
