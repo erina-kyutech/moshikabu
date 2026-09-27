@@ -47,6 +47,15 @@ class BacktestData(Protocol):
 
     def fundamentals(self, ticker: str, on: date) -> Fundamentals | None: ...
 
+    def fundamentals_many(
+        self, tickers: list[str], on: date
+    ) -> dict[str, Fundamentals | None]:
+        """複数銘柄分をまとめて取る。
+
+        実データ層は並列で取得する。1銘柄ずつだと銘柄数に比例して待ち時間が伸び、
+        サーバーレスの実行時間の上限に当たるため。
+        """
+
     def price(self, ticker: str, on: date) -> float | None:
         """その日（以前で直近）の株価。分割調整済み・基準通貨（円）に換算済み。"""
 
@@ -166,7 +175,7 @@ def run(config: BacktestConfig, data: BacktestData) -> BacktestResult:
         if sell_date <= screening_date:
             continue
 
-        snapshots = {t: data.fundamentals(t, screening_date) for t in universe}
+        snapshots = data.fundamentals_many(universe, screening_date)
         result = screen(config.conditions, snapshots)
         for reason in result.excluded.values():
             excluded_counts[reason] = excluded_counts.get(reason, 0) + 1

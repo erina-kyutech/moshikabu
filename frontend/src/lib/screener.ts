@@ -33,6 +33,8 @@ export interface UniverseDef {
   description: string
   size: number
   slow: boolean
+  /** バックテストに使えるか（銘柄が多すぎると時間内に終わらない） */
+  backtestable: boolean
 }
 
 export interface ScreenerCatalog {

@@ -93,6 +93,12 @@ export default function BacktestSetup() {
       setError('検証終了日は開始日より後にしてください。')
       return
     }
+    if (tooManyStocks) {
+      setError(
+        `「${universeDef?.label}」は銘柄が多く、検証が時間内に終わりません。対象にする銘柄を少なくしてください。`,
+      )
+      return
+    }
 
     setRunning(true)
     try {
@@ -125,6 +131,7 @@ export default function BacktestSetup() {
   }
 
   const universeDef = catalog.universes.find((u) => u.id === universe)
+  const tooManyStocks = universeDef?.backtestable === false
 
   return (
     <ScreenerLayout
@@ -248,11 +255,20 @@ export default function BacktestSetup() {
               <Input value="該当銘柄へ均等投資" readOnly disabled />
             </Field>
 
-            <Field label="対象にする銘柄" htmlFor="bt-universe" hint={universeDef?.description}>
+            <Field
+              label="対象にする銘柄"
+              htmlFor="bt-universe"
+              hint={
+                tooManyStocks
+                  ? '銘柄が多いと検証が時間内に終わらないため、この母集団は選べません。'
+                  : universeDef?.description
+              }
+            >
               <Select id="bt-universe" value={universe} onChange={(e) => setUniverse(e.target.value)}>
                 {catalog.universes.map((u) => (
-                  <option key={u.id} value={u.id}>
+                  <option key={u.id} value={u.id} disabled={!u.backtestable}>
                     {u.label}
+                    {u.backtestable ? '' : '（銘柄が多く、検証には使えません）'}
                   </option>
                 ))}
               </Select>
@@ -274,7 +290,7 @@ export default function BacktestSetup() {
               </p>
             ) : null}
 
-            <Button size="lg" full onClick={run} disabled={running}>
+            <Button size="lg" full onClick={run} disabled={running || tooManyStocks}>
               {running ? '検証中…（1分ほどかかることがあります）' : '▶ バックテスト開始'}
             </Button>
           </div>

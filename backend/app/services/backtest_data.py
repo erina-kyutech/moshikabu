@@ -122,6 +122,21 @@ class MarketBacktestData:
         except (SymbolNotFoundError, MarketDataError):
             return None
 
+    def fundamentals_many(self, tickers: list[str], on: date) -> dict[str, Fundamentals | None]:
+        """銘柄ごとの財務データを並列で取る。
+
+        1銘柄ずつ順番に取ると銘柄数に比例して待たされ、
+        サーバーレスの実行時間の上限（60秒）に当たってしまう。
+        """
+        if not tickers:
+            return {}
+
+        def load(ticker: str) -> tuple[str, Fundamentals | None]:
+            return ticker, self.fundamentals(ticker, on)
+
+        with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(tickers))) as pool:
+            return dict(pool.map(load, tickers))
+
     def price(self, ticker: str, on: date) -> float | None:
         series = self._prices.get(ticker)
         if series is None:

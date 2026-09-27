@@ -48,6 +48,12 @@ MAX_WORKERS = 24
 # Vercel の関数は60秒で打ち切られるため、これを超える母集団は
 # フロントから offset をずらして分割で呼ぶ。
 CHUNK_SIZE = 50
+# バックテストは分割できない（1回の実行で全期間を通すため）。
+# かかる時間はほぼ銘柄数で決まる（決算データは銘柄ごとに1度だけ取得してキャッシュし、
+# 抽出日が増えてもそれを使い回すため）。
+# 実測（本番）: 40銘柄で56秒 / 99銘柄は60秒を超えて 504。
+# 60秒で打ち切られるより先に、実行前に断る。
+MAX_BACKTEST_TICKERS = 50
 
 # 条件の例。「おすすめ銘柄」ではなく、あくまで検索条件の組み合わせ例
 TEMPLATES = (
@@ -111,7 +117,10 @@ def catalog() -> CatalogOut:
         metrics=[MetricOut(**m.__dict__) for m in metrics.METRICS],
         operators=metrics.OPERATORS,
         categories=metrics.CATEGORIES,
-        universes=[UniverseOut(**u.__dict__) for u in universe_service.UNIVERSES],
+        universes=[
+            UniverseOut(**u.__dict__, backtestable=u.size <= MAX_BACKTEST_TICKERS)
+            for u in universe_service.UNIVERSES
+        ],
         templates=[
             TemplateOut(
                 id=t["id"],
@@ -294,6 +303,18 @@ def run_backtest(request: BacktestRequest) -> BacktestResponse:
         benchmark=request.benchmark,
         universe=request.universe,
     )
+
+    dates = backtest_engine.screening_dates(config)
+    if not dates:
+        raise _bad("検証期間のなかに、銘柄を抽出する日がありません。期間を長くしてください。")
+
+    count = len(universe_service.tickers(request.universe))
+    if count > MAX_BACKTEST_TICKERS:
+        raise _bad(
+            f"「{spec.label}」は銘柄が多く、検証が時間内に終わりません"
+            f"（{count}銘柄。検証に使えるのは{MAX_BACKTEST_TICKERS}銘柄までです）。"
+            "対象にする銘柄を少なくしてください。"
+        )
 
     data = MarketBacktestData(request.universe, request.benchmark, request.startDate, request.endDate)
     try:

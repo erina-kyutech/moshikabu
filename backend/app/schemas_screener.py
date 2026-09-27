@@ -36,6 +36,8 @@ class UniverseOut(BaseModel):
     description: str
     size: int
     slow: bool
+    backtestable: bool = True
+    """バックテストに使えるか（銘柄が多すぎると時間内に終わらない）"""
 
 
 class BenchmarkOut(BaseModel):

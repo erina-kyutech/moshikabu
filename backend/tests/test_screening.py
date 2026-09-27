@@ -101,6 +101,9 @@ class FakeData:
     def fundamentals(self, ticker, on):
         return self._fundamentals.get(ticker, {}).get(on)
 
+    def fundamentals_many(self, tickers, on):
+        return {t: self.fundamentals(t, on) for t in tickers}
+
     def price(self, ticker, on):
         series = self._prices.get(ticker, {})
         past = [d for d in series if d <= on]
