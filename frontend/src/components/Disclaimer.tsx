@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 /** 画面下部の免責表示（全ページ共通）。 */
 export function Disclaimer() {
   return (
@@ -9,6 +11,11 @@ export function Disclaimer() {
         <p className="mt-2 text-xs leading-relaxed text-faint">
           実際の証券口座とは接続しておらず、実際のお金による取引は一切行われません。株価データは Yahoo Finance
           を利用しており、遅延・欠損が生じる場合があります。
+        </p>
+        <p className="mt-3 text-xs text-faint">
+          <Link to="/data" className="text-brand hover:underline">
+            記録の保存と復元
+          </Link>
         </p>
       </div>
     </footer>

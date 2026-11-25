@@ -38,6 +38,8 @@ export interface RuleRepository {
   get(id: string): SavedRule | null
   save(name: string, conditions: ScreenerCondition[], universe: string): SavedRule
   remove(id: string): void
+  /** サーバーの控えから取り戻すときに、保存内容をまるごと入れ替える */
+  replaceAll(rules: SavedRule[]): void
   subscribe(listener: () => void): () => void
 }
 
@@ -64,6 +66,11 @@ class LocalRuleRepository implements RuleRepository {
     write(RULES_KEY, [rule, ...this.list()])
     this.emit()
     return rule
+  }
+
+  replaceAll(rules: SavedRule[]): void {
+    write(RULES_KEY, rules)
+    this.emit()
   }
 
   remove(id: string): void {

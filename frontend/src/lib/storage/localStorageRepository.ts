@@ -104,6 +104,11 @@ export class LocalStorageRepository implements PortfolioRepository {
     this.emit()
   }
 
+  async replaceAll(positions: Position[]): Promise<void> {
+    writeAll(positions)
+    this.emit()
+  }
+
   async clear(): Promise<void> {
     writeAll([])
     this.emit()

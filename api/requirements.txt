@@ -4,3 +4,4 @@
 fastapi>=0.115
 yfinance>=0.2.50
 pydantic>=2.7
+psycopg[binary]>=3.2

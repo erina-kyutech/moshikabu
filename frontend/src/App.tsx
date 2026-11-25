@@ -1,10 +1,11 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { MobileBottomNavigation, Navigation } from './components/Navigation'
 import { Disclaimer } from './components/Disclaimer'
 import { ScrollToTop } from './components/ScrollToTop'
 import { LoadingBlock } from './components/ui/States'
 import Home from './pages/Home'
+import { startSync } from './lib/storage/sync'
 
 // チャートライブラリを含む画面は遅延読み込みして、ホームの表示を軽くする
 const PastSimulation = lazy(() => import('./pages/PastSimulation'))
@@ -22,9 +23,15 @@ const ScreenerResults = lazy(() => import('./pages/ScreenerResults'))
 const ScreenerStock = lazy(() => import('./pages/ScreenerStock'))
 const BacktestSetup = lazy(() => import('./pages/BacktestSetup'))
 const BacktestResult = lazy(() => import('./pages/BacktestResult'))
+const DataBackup = lazy(() => import('./pages/DataBackup'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 export default function App() {
+  // 記録の控えをサーバーと同期する（失敗してもブラウザ内の記録はそのまま使える）
+  useEffect(() => {
+    void startSync()
+  }, [])
+
   return (
     <div className="flex min-h-dvh flex-col bg-canvas">
       <ScrollToTop />
@@ -50,6 +57,7 @@ export default function App() {
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/portfolio/:id" element={<HoldingDetail />} />
             <Route path="/history" element={<TradeHistory />} />
+            <Route path="/data" element={<DataBackup />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

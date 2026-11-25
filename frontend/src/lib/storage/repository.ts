@@ -14,6 +14,8 @@ export interface PortfolioRepository {
   sell(id: string, input: SellInput): Promise<Position>
   remove(id: string): Promise<void>
   clear(): Promise<void>
+  /** サーバーの控えから取り戻すときに、保存内容をまるごと入れ替える */
+  replaceAll(positions: Position[]): Promise<void>
   /** 変更通知（同一タブ・別タブ両方）。解除関数を返す。 */
   subscribe(listener: () => void): () => void
 }

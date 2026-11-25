@@ -30,6 +30,19 @@ import type {
 
 const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '')
 
+export interface BookCreated {
+  id: string
+  updatedAt: string
+}
+
+export interface BookPayload {
+  positions: unknown[]
+  rules: unknown[]
+  dayTrade: unknown
+}
+
+export interface BookContents extends BookCreated, BookPayload {}
+
 export class ApiError extends Error {
   code: string
   status: number
@@ -157,8 +170,68 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
   return (await res.json()) as T
 }
 
+async function put<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    })
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw e
+    throw new ApiError(NETWORK_MESSAGE, 'NETWORK_ERROR')
+  }
+  if (!res.ok) {
+    let code = 'UNKNOWN'
+    let message = fallbackMessage(res.status)
+    try {
+      const detail = (await res.json())?.detail
+      if (typeof detail === 'string') message = detail
+      else if (detail && typeof detail === 'object') {
+        code = detail.code ?? code
+        message = detail.message ?? message
+      }
+    } catch {
+      /* JSON でないレスポンスは既定メッセージのまま */
+    }
+    throw new ApiError(message, code, res.status)
+  }
+  return (await res.json()) as T
+}
+
+/**
+ * 記録の同期は画面の裏で動くので、返ってこないまま待ち続けないよう打ち切る。
+ * 失敗してもブラウザ内の記録はそのまま使える。
+ */
+const SYNC_TIMEOUT_MS = 12000
+
+function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), SYNC_TIMEOUT_MS)
+  return run(controller.signal).finally(() => clearTimeout(timer))
+}
+
 export const api = {
-  health: () => request<{ status: string; provider: string }>('/api/health'),
+  health: () =>
+    request<{ status: string; provider: string; storage?: string }>('/api/health'),
+
+  // ------------------------------------------------- 記録（サーバー側の控え）
+  /** 新しい記録IDを発行する */
+  createBook: () => withTimeout((signal) => post<BookCreated>('/api/books', {}, signal)),
+
+  /** 記録の中身をまとめて取り出す */
+  getBook: (id: string) =>
+    withTimeout((signal) =>
+      request<BookContents>(`/api/books/${encodeURIComponent(id)}`, undefined, signal),
+    ),
+
+  /** 記録をまるごと保存し直す */
+  putBook: (id: string, body: BookPayload) =>
+    withTimeout((signal) =>
+      put<BookCreated>(`/api/books/${encodeURIComponent(id)}`, body, signal),
+    ),
 
   // ---------------------------------------------------------- 条件スクリーナー
   /** 指標・演算子・テンプレートなどの一覧 */

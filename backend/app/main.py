@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .providers.base import MarketDataError, SymbolNotFoundError
-from .routers import fx, screener, search, simulate, stock, strategies
+from .routers import books, fx, screener, search, simulate, stock, strategies
 
 app = FastAPI(
     title="MoshiKabu API",
@@ -35,6 +35,7 @@ app.include_router(screener.router)
 app.include_router(simulate.router)
 app.include_router(strategies.router)
 app.include_router(fx.router)
+app.include_router(books.router)
 
 
 @app.exception_handler(SymbolNotFoundError)
@@ -67,4 +68,11 @@ async def _value_error(_: Request, exc: ValueError) -> JSONResponse:
 def health() -> dict:
     from .providers import get_provider
 
-    return {"status": "ok", "provider": get_provider().name}
+    from . import db
+
+    return {
+        "status": "ok",
+        "provider": get_provider().name,
+        # 記録のサーバー保存が使えるか（使えなければブラウザ内保存だけで動く）
+        "storage": "server" if db.configured() else "browser",
+    }

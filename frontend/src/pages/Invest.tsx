@@ -289,9 +289,13 @@ export default function Invest() {
             <InfoIcon className="h-5 w-5" />
           </span>
           <div className="text-sm leading-relaxed text-muted">
-            <p className="font-semibold text-ink">記録はこの端末のブラウザに保存されます</p>
+            <p className="font-semibold text-ink">記録はこの端末に保存し、控えをサーバーにも置きます</p>
             <p className="mt-1">
-              サーバーには送信されません。履歴は
+              ブラウザの保存データは消えることがあるため、記録IDで取り戻せるようにしています。
+              <Link to="/data" className="mx-1 text-brand hover:underline">
+                記録の保存と復元
+              </Link>
+              から確認できます。履歴は
               <Link to="/history" className="mx-1 text-brand hover:underline">
                 取引履歴
               </Link>
