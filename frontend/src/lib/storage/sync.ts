@@ -9,7 +9,7 @@
  * 起動時は、ブラウザとサーバーの内容を**idで突き合わせて合体**する。
  * どちらか片方を丸ごと採用すると、端末が違ったときに記録が消えてしまうため。
  */
-import { api } from '../api'
+import { ApiError, api } from '../api'
 import type { SavedRule } from '../screener'
 import { bookLink, currentBookId, markSynced, setBookId } from './book'
 import { dayTradeRepository } from './dayTradeRepository'
@@ -77,6 +77,21 @@ async function adopt(positions: Position[], rules: SavedRule[], dayTrade: unknow
   if (dayTrade) await dayTradeRepository.save(dayTrade as never)
 }
 
+/**
+ * この端末に紐づいた記録IDをサーバーに尋ねる。
+ *
+ * iOS Safari は保存データを消すことがあるが、
+ * サーバーが発行した Cookie はその対象外なので、ここから元の記録に戻れる。
+ */
+async function recallBookId(): Promise<string | null> {
+  try {
+    const mine = await api.myBook()
+    return mine.id
+  } catch {
+    return null
+  }
+}
+
 /** いまのブラウザ内の記録をサーバーへ送る */
 async function push(bookId: string): Promise<void> {
   const local = await collectLocal()
@@ -124,7 +139,11 @@ export async function startSync(): Promise<void> {
 
   try {
     if (!bookId) {
-      // 記録がすでにある場合も含め、新しいIDを発行して控えを作る
+      // 保存データが消えていても、Cookie が残っていれば元の記録に戻れる
+      bookId = await recallBookId()
+    }
+
+    if (!bookId) {
       const created = await api.createBook()
       bookId = created.id
       setBookId(bookId)
@@ -133,9 +152,25 @@ export async function startSync(): Promise<void> {
       return
     }
 
+    setBookId(bookId)
+
     update({ state: 'syncing', bookId, link: bookLink(bookId) })
 
-    const [remote, local] = await Promise.all([api.getBook(bookId), collectLocal()])
+    const remote = await api.getBook(bookId).catch((e) => {
+      // URL に古いIDが残っている場合など。新しく作り直す
+      if (e instanceof ApiError && e.status === 404) return null
+      throw e
+    })
+    if (!remote) {
+      const created = await api.createBook()
+      bookId = created.id
+      setBookId(bookId)
+      update({ state: 'syncing', bookId, link: bookLink(bookId) })
+      await push(bookId)
+      return
+    }
+
+    const local = await collectLocal()
     const positions = mergeById(local.positions, remote.positions as Position[])
     const rules = mergeById(local.rules, remote.rules as SavedRule[])
     const dayTrade = local.dayTrade ?? remote.dayTrade
@@ -156,6 +191,36 @@ export async function startSync(): Promise<void> {
       message: '記録の控えに接続できませんでした。この端末には保存されています。',
     })
   }
+}
+
+/** 記録をファイルに書き出すための中身 */
+export async function exportBook(): Promise<string> {
+  const local = await collectLocal()
+  return JSON.stringify(
+    { app: 'moshikabu', version: 1, exportedAt: new Date().toISOString(), ...local },
+    null,
+    2,
+  )
+}
+
+/** 書き出したファイルを読み込む（いまの記録と合体させる） */
+export async function importBook(text: string): Promise<{ positions: number; rules: number }> {
+  let parsed: { positions?: Position[]; rules?: SavedRule[]; dayTrade?: unknown }
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    throw new Error('ファイルを読み取れませんでした。')
+  }
+  if (!parsed || (!Array.isArray(parsed.positions) && !Array.isArray(parsed.rules))) {
+    throw new Error('MoshiKabu の記録ファイルではないようです。')
+  }
+
+  const local = await collectLocal()
+  const positions = mergeById(local.positions, parsed.positions ?? [])
+  const rules = mergeById(local.rules, parsed.rules ?? [])
+  await adopt(positions, rules, local.dayTrade ?? parsed.dayTrade)
+  schedulePush()
+  return { positions: positions.length, rules: rules.length }
 }
 
 /**

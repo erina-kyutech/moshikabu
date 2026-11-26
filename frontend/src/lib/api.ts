@@ -218,6 +218,9 @@ export const api = {
     request<{ status: string; provider: string; storage?: string }>('/api/health'),
 
   // ------------------------------------------------- 記録（サーバー側の控え）
+  /** この端末に紐づいた記録ID（Cookie から引く）。無ければ 404 */
+  myBook: () => withTimeout((signal) => request<BookCreated>('/api/books/me', undefined, signal)),
+
   /** 新しい記録IDを発行する */
   createBook: () => withTimeout((signal) => post<BookCreated>('/api/books', {}, signal)),
 

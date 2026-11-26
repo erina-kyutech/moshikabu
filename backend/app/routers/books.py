@@ -12,12 +12,31 @@ import json
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Cookie, HTTPException, Request, Response
 
 from .. import db
 from ..schemas_books import BookCreatedOut, BookIn, BookOut, PositionIn, RuleIn
 
 router = APIRouter(prefix="/api/books", tags=["books"])
+
+# 記録IDの置き場所。
+# localStorage だけに置くと、iOS Safari が保存データを消したときに
+# サーバーの控えへ戻れなくなる。サーバーが発行する Cookie は
+# この削除の対象外なので、こちらにも控える。
+COOKIE_NAME = "moshikabu_book"
+COOKIE_MAX_AGE = 400 * 24 * 60 * 60  # ブラウザ側の上限が400日
+
+
+def _remember(response: Response, request: Request, book_id: str) -> None:
+    response.set_cookie(
+        COOKIE_NAME,
+        book_id,
+        max_age=COOKIE_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        path="/",
+    )
 
 
 def _unavailable() -> HTTPException:
@@ -44,9 +63,35 @@ def _parse_id(book_id: str) -> uuid.UUID:
         raise _not_found()
 
 
+@router.get("/me", response_model=BookCreatedOut)
+def my_book(
+    request: Request,
+    moshikabu_book: str | None = Cookie(default=None),
+) -> BookCreatedOut:
+    """この端末に紐づいた記録IDを返す。
+
+    ブラウザの保存データが消えても、Cookie が残っていればここから元の記録に戻れる。
+    """
+    if not db.configured():
+        raise _unavailable()
+    if not moshikabu_book:
+        raise _not_found()
+    bid = _parse_id(moshikabu_book)
+    try:
+        db.ensure_schema()
+        with db.connect() as conn, conn.cursor() as cur:
+            cur.execute("select updated_at from books where id = %s", (bid,))
+            row = cur.fetchone()
+    except db.DatabaseUnavailable:
+        raise _unavailable()
+    if row is None:
+        raise _not_found()
+    return BookCreatedOut(id=str(bid), updatedAt=row[0])
+
+
 @router.post("", response_model=BookCreatedOut)
 @router.post("/", response_model=BookCreatedOut)
-def create_book() -> BookCreatedOut:
+def create_book(request: Request, response: Response) -> BookCreatedOut:
     """新しい記録IDを発行する。"""
     if not db.configured():
         raise _unavailable()
@@ -61,6 +106,7 @@ def create_book() -> BookCreatedOut:
             )
     except db.DatabaseUnavailable:
         raise _unavailable()
+    _remember(response, request, str(book_id))
     return BookCreatedOut(id=str(book_id), updatedAt=now)
 
 
@@ -140,7 +186,7 @@ def get_book(book_id: str) -> BookOut:
 
 
 @router.put("/{book_id}", response_model=BookCreatedOut)
-def put_book(book_id: str, body: BookIn) -> BookCreatedOut:
+def put_book(book_id: str, body: BookIn, request: Request, response: Response) -> BookCreatedOut:
     """記録をまるごと置き換える。
 
     差分同期にすると端末をまたいだときの整合が複雑になるため、
@@ -219,6 +265,8 @@ def put_book(book_id: str, body: BookIn) -> BookCreatedOut:
     except db.DatabaseUnavailable:
         raise _unavailable()
 
+    # 保存のたびに Cookie を貼り直して、有効期限を延ばす
+    _remember(response, request, str(bid))
     return BookCreatedOut(id=str(bid), updatedAt=now)
 
 

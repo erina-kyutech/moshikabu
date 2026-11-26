@@ -5,7 +5,13 @@ import { Button } from '../components/ui/Button'
 import { Field, Input } from '../components/ui/Field'
 import { CheckIcon, InfoIcon } from '../components/Icons'
 import { ApiError } from '../lib/api'
-import { restoreBook, subscribeSync, type SyncStatus } from '../lib/storage/sync'
+import {
+  exportBook,
+  importBook,
+  restoreBook,
+  subscribeSync,
+  type SyncStatus,
+} from '../lib/storage/sync'
 import { usePositions } from '../hooks/usePositions'
 import { ruleRepository } from '../lib/storage/rules'
 
@@ -24,6 +30,8 @@ export default function DataBackup() {
   const [restoring, setRestoring] = useState(false)
   const [restoreError, setRestoreError] = useState('')
   const [restored, setRestored] = useState('')
+  const [fileMessage, setFileMessage] = useState('')
+  const [fileError, setFileError] = useState('')
   const { positions } = usePositions()
   const ruleCount = ruleRepository.list().length
 
@@ -53,6 +61,34 @@ export default function DataBackup() {
       )
     } finally {
       setRestoring(false)
+    }
+  }
+
+  const download = async () => {
+    setFileError('')
+    try {
+      const text = await exportBook()
+      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `moshikabu-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      setFileMessage('書き出しました。')
+    } catch {
+      setFileError('書き出せませんでした。')
+    }
+  }
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return
+    setFileError('')
+    setFileMessage('')
+    try {
+      const result = await importBook(await file.text())
+      setFileMessage(`保有${result.positions}件・マイルール${result.rules}件になりました。`)
+    } catch (e) {
+      setFileError(e instanceof Error ? e.message : '読み込めませんでした。')
     }
   }
 
@@ -162,6 +198,40 @@ export default function DataBackup() {
         {restored ? (
           <p className="mt-3 rounded-xl border border-gain/20 bg-gain-soft px-4 py-3 text-sm text-gain">
             {restored}
+          </p>
+        ) : null}
+      </Card>
+
+      <Card padding="lg">
+        <CardTitle>ファイルに書き出す</CardTitle>
+        <p className="mb-4 text-sm leading-relaxed text-muted">
+          記録をファイルとして手元に残せます。読み込むと、いまの記録と合体させます。
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={download}>
+            書き出す
+          </Button>
+          <label className="focus-ring inline-flex h-11 cursor-pointer items-center rounded-xl border border-line bg-white px-4 text-sm font-medium text-ink transition hover:bg-canvas-2">
+            読み込む
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                void upload(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
+          </label>
+        </div>
+        {fileMessage ? (
+          <p className="mt-3 rounded-xl border border-gain/20 bg-gain-soft px-4 py-3 text-sm text-gain">
+            {fileMessage}
+          </p>
+        ) : null}
+        {fileError ? (
+          <p className="mt-3 rounded-xl border border-loss/20 bg-loss-soft px-4 py-3 text-sm text-loss">
+            {fileError}
           </p>
         ) : null}
       </Card>
