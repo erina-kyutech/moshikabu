@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { MobileBottomNavigation, Navigation } from './components/Navigation'
 import { Disclaimer } from './components/Disclaimer'
 import { ScrollToTop } from './components/ScrollToTop'
+import { RouteSeo } from './components/Seo'
 import { LoadingBlock } from './components/ui/States'
 import Home from './pages/Home'
 import { startSync } from './lib/storage/sync'
@@ -35,6 +36,7 @@ export default function App() {
   return (
     <div className="flex min-h-dvh flex-col bg-canvas">
       <ScrollToTop />
+      <RouteSeo />
       <Navigation />
       <main className="flex-1 pb-20 md:pb-0">
         <Suspense fallback={<LoadingBlock message="読み込み中…" />}>

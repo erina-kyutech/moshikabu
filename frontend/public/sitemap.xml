@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://moshikabu-black.vercel.app/</loc><priority>1.0</priority></url>
+  <url><loc>https://moshikabu-black.vercel.app/past</loc><priority>0.9</priority></url>
+  <url><loc>https://moshikabu-black.vercel.app/invest</loc><priority>0.9</priority></url>
+  <url><loc>https://moshikabu-black.vercel.app/screener</loc><priority>0.9</priority></url>
+  <url><loc>https://moshikabu-black.vercel.app/backtest</loc><priority>0.8</priority></url>
+  <url><loc>https://moshikabu-black.vercel.app/daytrade</loc><priority>0.8</priority></url>
+  <url><loc>https://moshikabu-black.vercel.app/compare</loc><priority>0.8</priority></url>
+  <url><loc>https://moshikabu-black.vercel.app/recurring</loc><priority>0.8</priority></url>
+  <url><loc>https://moshikabu-black.vercel.app/compare-strategy</loc><priority>0.7</priority></url>
+  <url><loc>https://moshikabu-black.vercel.app/simulations</loc><priority>0.6</priority></url>
+</urlset>

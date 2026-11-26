@@ -502,6 +502,28 @@ IDを知っている人はその記録を読み書きできます。扱うのは
 
 ---
 
+## 検索で見つけてもらうための設定
+
+| 置き場所 | 内容 |
+| --- | --- |
+| `frontend/index.html` | タイトル・説明文・OGP・Twitter カード・canonical の初期値 |
+| `frontend/src/components/Seo.tsx` | 画面ごとのタイトルと説明文。`RouteSeo` を `App` で1回だけ描画する |
+| `frontend/public/robots.txt` | クロール許可とサイトマップの場所 |
+| `frontend/public/sitemap.xml` | 主要ページの一覧 |
+| `frontend/public/og.png` | SNS 共有用のカード画像（1200x630）。`scripts/make_og_image.py` で再生成 |
+
+画面ごとの文言を各ページに書かず `Seo.tsx` にまとめているのは、
+読み込み中などで早く return するページがあり、入れ忘れ・入れ違いが起きるためです。
+
+`canonical` はクエリを落としたパスだけにしています。
+記録ID付きのURL（`?book=...`）が別ページとして扱われないようにするためで、
+`robots.txt` でも `Disallow: /*?book=` にしています。
+
+> 検索結果に出るには、Google がURLを見つける必要があります。
+> Google Search Console にサイトを登録し、`sitemap.xml` を送信してください（所有者本人の操作が必要です）。
+
+---
+
 ## 環境変数
 
 `.env.example` を参照してください。

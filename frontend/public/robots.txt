@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# 記録IDつきのURLは、同じ内容の重複ページになるため辿らせない
+Disallow: /*?book=
+
+Sitemap: https://moshikabu-black.vercel.app/sitemap.xml
